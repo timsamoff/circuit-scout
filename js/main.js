@@ -30,7 +30,8 @@ let filterState = {
     type: '',
     difficulty: '',
     category: 'all',
-    verified: 'all'
+    verified: 'all',
+    favorites: false
 };
 
 // DOM Elements
@@ -82,6 +83,43 @@ function toggleTheme() {
 }
 
 // ========== LOAD CIRCUITS ==========
+async function loadCircuitsFromJSON() {
+    try {
+        // Try multiple possible paths
+        const paths = [
+            '/data/circuits.json',
+            'data/circuits.json',
+            './data/circuits.json',
+            '../data/circuits.json'
+        ];
+        
+        let lastError = null;
+        
+        for (const path of paths) {
+            try {
+                console.log(`Trying to load from: ${path}`);
+                const response = await fetch(path);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log(`Successfully loaded ${data.length} circuits from ${path}`);
+                    return data;
+                } else {
+                    lastError = `HTTP ${response.status} for ${path}`;
+                }
+            } catch (e) {
+                lastError = e.message;
+                continue;
+            }
+        }
+        
+        throw new Error(`Could not load circuits.json. Tried multiple paths. Last error: ${lastError}`);
+        
+    } catch (error) {
+        console.error('Failed to load JSON:', error);
+        throw error;
+    }
+}
+
 async function loadMoreCircuits(reset = false) {
     if (isLoading) return;
     if (!reset && !hasMore) return;
@@ -125,10 +163,7 @@ async function loadMoreCircuits(reset = false) {
         } else {
             // Use static JSON on GitHub Pages
             if (!allCircuitsCache) {
-                const response = await fetch(`${API_BASE}/circuits.json`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                allCircuitsCache = await response.json();
-                console.log(`Loaded ${allCircuitsCache.length} circuits from JSON`);
+                allCircuitsCache = await loadCircuitsFromJSON();
             }
             
             // Apply filters
@@ -166,6 +201,11 @@ async function loadMoreCircuits(reset = false) {
                 filtered = filtered.filter(c => c.verified === false);
             }
             
+            // Favorites filter
+            if (filterState.favorites) {
+                filtered = filtered.filter(c => favorites.has(c.id));
+            }
+            
             totalResults = filtered.length;
             totalPages = Math.ceil(totalResults / 20);
             const start = (currentPage - 1) * 20;
@@ -187,12 +227,19 @@ async function loadMoreCircuits(reset = false) {
     } catch (error) {
         console.error('Failed to load circuits:', error);
         if (resultsGrid && reset) {
-            resultsGrid.innerHTML = `<div class="error-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Error loading circuits: ${error.message}</p>
-                <p>${isLocalhost ? 'Make sure the server is running on port 3000.' : 'Make sure data/circuits.json exists.'}</p>
+            resultsGrid.innerHTML = `<div class="error-state" style="text-align: center; grid-column: 1 / -1; padding: 3rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">Error loading circuits</p>
+                <p style="color: var(--text-muted);">${error.message}</p>
+                <p style="color: var(--text-muted); margin-top: 1rem; font-size: 0.875rem;">
+                    ${isLocalhost ? 'Make sure the server is running on port 3000.' : 'Make sure data/circuits.json exists in the data folder.'}
+                </p>
+                <button onclick="location.reload()" class="btn-secondary" style="margin-top: 1rem; width: auto; padding: 0.5rem 1rem;">
+                    <i class="fas fa-sync-alt"></i> Retry
+                </button>
             </div>`;
         }
+        if (loadingTrigger) loadingTrigger.style.display = 'none';
     } finally {
         isLoading = false;
     }
@@ -218,7 +265,7 @@ function renderCircuitsList(circuits, append = false) {
     if (!resultsGrid) return;
     
     if (!circuits.length && !append) {
-        resultsGrid.innerHTML = '<div class="empty-state">No circuits found. Try adjusting your filters.</div>';
+        resultsGrid.innerHTML = '<div class="empty-state" style="text-align: center; grid-column: 1 / -1; padding: 3rem;"><i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i><p>No circuits found. Try adjusting your filters.</p></div>';
         return;
     }
     
@@ -289,7 +336,7 @@ function toggleFavorite(e) {
     updateFavFilterButton();
     
     if (favFilterBtn && favFilterBtn.classList.contains('active')) {
-        applyFiltersAndReload();
+        resetAndReload();
     }
 }
 
@@ -303,10 +350,6 @@ function updateFavFilterButton() {
         favFilterBtn.classList.remove('active');
         favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
     }
-}
-
-function applyFiltersAndReload() {
-    resetAndReload();
 }
 
 // ========== FILTER UI ==========
@@ -348,9 +391,7 @@ async function loadFilterOptions() {
             difficulties = filters.difficulties || [];
         } else {
             if (!allCircuitsCache) {
-                const response = await fetch(`${API_BASE}/circuits.json`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                allCircuitsCache = await response.json();
+                allCircuitsCache = await loadCircuitsFromJSON();
             }
             types = [...new Set(allCircuitsCache.map(c => c.type).filter(t => t))];
             difficulties = [...new Set(allCircuitsCache.map(c => c.difficulty).filter(d => d))];
@@ -468,7 +509,6 @@ if (resetFiltersBtn) {
             favFilterBtn.classList.remove('active');
             favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
         }
-        filterState.favorites = false;
         resetAndReload();
     });
 }

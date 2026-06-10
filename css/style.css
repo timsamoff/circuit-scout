@@ -350,5 +350,36 @@ body {
 .loading-state .fa-spinner { margin-right: 0.5rem; }
 .star-btn .fa-star, .star-btn .far { margin-right: 0; }
 
+/* Error and Empty States */
+.error-state,
+.empty-state {
+    text-align: center;
+    grid-column: 1 / -1;
+    padding: 3rem;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-glow);
+}
+
+.error-state i,
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+    opacity: 0.7;
+}
+
+.error-state p,
+.empty-state p {
+    margin-bottom: 0.5rem;
+}
+
+.error-state .btn-secondary {
+    margin-top: 1rem;
+    width: auto;
+    padding: 0.5rem 1rem;
+    display: inline-flex;
+}
+
 @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 :focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
