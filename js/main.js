@@ -1,19 +1,21 @@
 /*
  * ============================================================================
- * Circuit Scout - Admin Dashboard
+ * Circuit Scout - Public User Interface
  * Version 1.0.0
  * Designed & Developed by Tim Samoff
  * 
  * A DIY guitar pedal circuit database and search tool
  * 
- * Features: RSS feed management, circuit editor, lazy loading, filtering
+ * Features: Lazy loading, favorites, dark/light mode, advanced filtering
  * 
  * @license MIT
  * @see https://samoff.com/circuit-scout
  * ============================================================================
  */
 
-const API_BASE = 'http://localhost:3000/api';
+// Detect if running locally or on GitHub Pages
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE = isLocalhost ? 'http://localhost:3000/api' : '/data';
 
 // Pagination state
 let currentPage = 1;
@@ -21,6 +23,7 @@ let totalPages = 1;
 let isLoading = false;
 let hasMore = true;
 let totalResults = 0;
+let allCircuitsCache = null; // Cache for static JSON mode
 
 let filterState = {
     search: '',
@@ -31,50 +34,54 @@ let filterState = {
 };
 
 // DOM Elements
-const circuitsContainer = document.getElementById('admin-circuits-list');
-const loadingTrigger = document.getElementById('admin-loading-trigger');
-const searchInput = document.getElementById('admin-search-input');
-const typeSelect = document.getElementById('admin-type-select');
-const difficultySelect = document.getElementById('admin-difficulty-select');
-const categoryAllBtn = document.getElementById('admin-category-all-btn');
-const categoryCircuitBtn = document.getElementById('admin-category-circuit-btn');
-const categoryReferenceBtn = document.getElementById('admin-category-reference-btn');
-const verifiedAllBtn = document.getElementById('admin-verified-all-btn');
-const verifiedOnlyBtn = document.getElementById('admin-verified-only-btn');
-const unverifiedOnlyBtn = document.getElementById('admin-unverified-only-btn');
-const resetFiltersBtn = document.getElementById('admin-reset-filters');
+const resultsGrid = document.getElementById('results-grid');
+const loadingTrigger = document.getElementById('loading-trigger');
+const searchInput = document.getElementById('search-input');
+const typeSelect = document.getElementById('type-select');
+const difficultySelect = document.getElementById('difficulty-select');
+const categoryAllBtn = document.getElementById('category-all-btn');
+const categoryCircuitBtn = document.getElementById('category-circuit-btn');
+const categoryReferenceBtn = document.getElementById('category-reference-btn');
+const verifiedAllBtn = document.getElementById('verified-all-btn');
+const verifiedOnlyBtn = document.getElementById('verified-only-btn');
+const unverifiedOnlyBtn = document.getElementById('unverified-only-btn');
+const resetFiltersBtn = document.getElementById('reset-filters');
+const favFilterBtn = document.getElementById('fav-filter-btn');
+const themeToggle = document.getElementById('theme-toggle');
+const resultCountSpan = document.getElementById('result-count');
 
-// ========== COLLAPSIBLE SECTIONS ==========
-function initCollapsible() {
-    const collapsibles = document.querySelectorAll('.collapsible');
-    
-    collapsibles.forEach(collapsible => {
-        const header = collapsible.querySelector('.card-header');
-        const collapseBtn = collapsible.querySelector('.collapse-btn');
-        const content = collapsible.querySelector('.card-content');
-        
-        if (!header || !content) return;
-        
-        // Function to toggle collapse
-        const toggleCollapse = (e) => {
-            e.stopPropagation();
-            collapsible.classList.toggle('collapsed');
-        };
-        
-        // Add click event to header
-        header.addEventListener('click', toggleCollapse);
-        
-        // Add click event to button (to prevent double firing)
-        if (collapseBtn) {
-            collapseBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                collapsible.classList.toggle('collapsed');
-            });
-        }
-    });
+// Favorites state
+let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]'));
+
+// ========== DARK MODE ==========
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light-mode') {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+    } else {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+    }
 }
 
-// ========== LAZY LOADING ==========
+function toggleTheme() {
+    if (document.body.classList.contains('dark-mode')) {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        localStorage.setItem('theme', 'light-mode');
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+    } else {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('theme', 'dark-mode');
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+    }
+}
+
+// ========== LOAD CIRCUITS ==========
 async function loadMoreCircuits(reset = false) {
     if (isLoading) return;
     if (!reset && !hasMore) return;
@@ -82,55 +89,108 @@ async function loadMoreCircuits(reset = false) {
     if (reset) {
         currentPage = 1;
         hasMore = true;
-        if (circuitsContainer) circuitsContainer.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-pulse"></i> Loading circuits...</div>';
+        if (resultsGrid) resultsGrid.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-pulse"></i> Loading circuits...</div>';
+        if (loadingTrigger) loadingTrigger.style.display = 'block';
     }
     
     isLoading = true;
     
     try {
-        const params = new URLSearchParams({
-            page: currentPage,
-            limit: 20,
-            search: filterState.search,
-            type: filterState.type,
-            difficulty: filterState.difficulty,
-            category: filterState.category !== 'all' ? filterState.category : '',
-            verified: filterState.verified === 'verified' ? 'true' : 
-                     filterState.verified === 'unverified' ? 'false' : ''
-        });
+        let circuits = [];
         
-        // Remove empty params
-        for (const [key, value] of params.entries()) {
-            if (!value) params.delete(key);
+        if (isLocalhost) {
+            // Use API when running locally
+            const params = new URLSearchParams({
+                page: currentPage,
+                limit: 20,
+                search: filterState.search,
+                type: filterState.type,
+                difficulty: filterState.difficulty,
+                category: filterState.category !== 'all' ? filterState.category : '',
+                verified: filterState.verified === 'verified' ? 'true' : 
+                         filterState.verified === 'unverified' ? 'false' : ''
+            });
+            
+            for (const [key, value] of params.entries()) {
+                if (!value) params.delete(key);
+            }
+            
+            const response = await fetch(`${API_BASE}/circuits?${params}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            circuits = data.circuits;
+            totalResults = data.total;
+            totalPages = data.totalPages;
+            hasMore = currentPage < totalPages;
+        } else {
+            // Use static JSON on GitHub Pages
+            if (!allCircuitsCache) {
+                const response = await fetch(`${API_BASE}/circuits.json`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                allCircuitsCache = await response.json();
+                console.log(`Loaded ${allCircuitsCache.length} circuits from JSON`);
+            }
+            
+            // Apply filters
+            let filtered = [...allCircuitsCache];
+            
+            // Search filter
+            if (filterState.search) {
+                const searchLower = filterState.search.toLowerCase();
+                filtered = filtered.filter(c => 
+                    c.effect_name?.toLowerCase().includes(searchLower) ||
+                    c.type?.toLowerCase().includes(searchLower) ||
+                    c.tags?.some(t => t.toLowerCase().includes(searchLower))
+                );
+            }
+            
+            // Type filter
+            if (filterState.type) {
+                filtered = filtered.filter(c => c.type === filterState.type);
+            }
+            
+            // Difficulty filter
+            if (filterState.difficulty) {
+                filtered = filtered.filter(c => c.difficulty === filterState.difficulty);
+            }
+            
+            // Category filter
+            if (filterState.category !== 'all') {
+                filtered = filtered.filter(c => c.category === filterState.category);
+            }
+            
+            // Verified filter
+            if (filterState.verified === 'verified') {
+                filtered = filtered.filter(c => c.verified === true);
+            } else if (filterState.verified === 'unverified') {
+                filtered = filtered.filter(c => c.verified === false);
+            }
+            
+            totalResults = filtered.length;
+            totalPages = Math.ceil(totalResults / 20);
+            const start = (currentPage - 1) * 20;
+            circuits = filtered.slice(start, start + 20);
+            hasMore = currentPage < totalPages;
         }
         
-        console.log('Fetching:', `${API_BASE}/circuits?${params}`);
-        const response = await fetch(`${API_BASE}/circuits?${params}`);
+        renderCircuitsList(circuits, !reset);
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (hasMore) {
+            currentPage++;
+            if (loadingTrigger) loadingTrigger.style.display = 'block';
+        } else {
+            if (loadingTrigger) loadingTrigger.style.display = 'none';
         }
         
-        const data = await response.json();
-        
-        totalResults = data.total;
-        renderCircuitsList(data.circuits, !reset);
-        
-        totalPages = data.totalPages;
-        hasMore = currentPage < totalPages;
-        currentPage++;
-        
-        if (loadingTrigger) {
-            loadingTrigger.style.display = hasMore ? 'block' : 'none';
-        }
+        if (resultCountSpan) resultCountSpan.textContent = `${totalResults} found`;
         
     } catch (error) {
         console.error('Failed to load circuits:', error);
-        if (circuitsContainer && reset) {
-            circuitsContainer.innerHTML = `<div class="error-state">
+        if (resultsGrid && reset) {
+            resultsGrid.innerHTML = `<div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
-                <p>Error loading circuits. Make sure the server is running on port 3000.</p>
-                <p class="error-details">${error.message}</p>
+                <p>Error loading circuits: ${error.message}</p>
+                <p>${isLocalhost ? 'Make sure the server is running on port 3000.' : 'Make sure data/circuits.json exists.'}</p>
             </div>`;
         }
     } finally {
@@ -155,55 +215,98 @@ function setupInfiniteScroll() {
 }
 
 function renderCircuitsList(circuits, append = false) {
-    if (!circuitsContainer) return;
+    if (!resultsGrid) return;
     
     if (!circuits.length && !append) {
-        circuitsContainer.innerHTML = '<div class="loading">No circuits found. Run the scraper or add one manually!</div>';
+        resultsGrid.innerHTML = '<div class="empty-state">No circuits found. Try adjusting your filters.</div>';
         return;
     }
     
     const html = circuits.map(circuit => {
-        let categoryBadge = '';
-        switch (circuit.category) {
-            case 'reference':
-                categoryBadge = '<span class="category-badge-small reference">Reference</span>';
-                break;
-            default:
-                categoryBadge = '<span class="category-badge-small circuit">Circuit</span>';
-        }
-        
-        let verificationBadge = circuit.verified ? 
-            '<span class="verified-badge-small">Verified</span>' : 
-            '<span class="unverified-badge-small">Unverified</span>';
+        const isStarred = favorites.has(circuit.id);
+        const categoryClass = circuit.category === 'reference' ? 'reference' : 'circuit';
+        const verifiedClass = circuit.verified ? 'verified-badge-small' : 'unverified-badge-small';
         
         return `
-        <div class="admin-circuit-item" data-id="${circuit.id}">
-            <div class="admin-circuit-info">
-                <h4>${escapeHtml(circuit.effect_name || 'Untitled')} ${categoryBadge} ${verificationBadge}</h4>
-                <p>${escapeHtml(circuit.type || 'No type')} | ${circuit.parts_count || '?'} parts | ${circuit.difficulty || 'Not set'}</p>
-                <small>${circuit.url ? escapeHtml(circuit.url.substring(0, 60)) + '...' : ''}</small>
+        <div class="circuit-card" data-id="${circuit.id}">
+            ${circuit.image_url ? `<img class="circuit-image" src="${escapeHtml(circuit.image_url)}" alt="${escapeHtml(circuit.effect_name)}" loading="lazy" onerror="this.style.display='none'">` : ''}
+            <div class="circuit-header">
+                <h3 class="circuit-name">${escapeHtml(circuit.effect_name || 'Untitled')}</h3>
+                <button class="star-btn ${isStarred ? 'starred' : ''}" data-id="${circuit.id}">
+                    <i class="${isStarred ? 'fas fa-star' : 'far fa-star'}"></i>
+                </button>
             </div>
-            <div class="admin-circuit-actions">
-                <button class="edit-btn" data-id="${circuit.id}"><i class="fas fa-edit"></i> Edit</button>
-                <button class="delete-btn" data-id="${circuit.id}"><i class="fas fa-trash"></i> Delete</button>
+            <div class="circuit-type-row">
+                <span class="circuit-type">${escapeHtml(circuit.type || 'Uncategorized')}</span>
+                <span class="category-badge ${categoryClass}"><i class="fas ${circuit.category === 'reference' ? 'fa-book' : 'fa-microchip'}"></i> ${circuit.category === 'reference' ? 'Reference' : 'Circuit'}</span>
+            </div>
+            ${circuit.description ? `<p class="circuit-description">${escapeHtml(circuit.description.substring(0, 120))}${circuit.description.length > 120 ? '...' : ''}</p>` : ''}
+            <div class="circuit-meta">
+                <span class="meta-badge"><i class="fas fa-microchip"></i> ${circuit.parts_count || '?'} parts</span>
+                <span class="meta-badge"><i class="fas fa-chart-line"></i> ${circuit.difficulty || 'Not set'}</span>
+            </div>
+            ${circuit.components && Object.keys(circuit.components).length > 0 ? 
+                `<div class="component-preview"><i class="fas fa-microchip"></i> ${Object.keys(circuit.components).slice(0, 3).join(', ')}${Object.keys(circuit.components).length > 3 ? '...' : ''}</div>` : ''}
+            <div class="circuit-footer">
+                <a href="${circuit.url}" class="circuit-url" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> View Layout</a>
+                <span class="${verifiedClass}"><i class="fas ${circuit.verified ? 'fa-check-circle' : 'fa-question-circle'}"></i> ${circuit.verified ? 'Verified' : 'Unverified'}</span>
             </div>
         </div>
     `}).join('');
     
     if (append) {
-        circuitsContainer.insertAdjacentHTML('beforeend', html);
+        resultsGrid.insertAdjacentHTML('beforeend', html);
     } else {
-        circuitsContainer.innerHTML = html;
+        resultsGrid.innerHTML = html;
     }
     
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.removeEventListener('click', () => {});
-        btn.addEventListener('click', () => editCircuit(btn.dataset.id));
+    document.querySelectorAll('.star-btn').forEach(btn => {
+        btn.removeEventListener('click', toggleFavorite);
+        btn.addEventListener('click', toggleFavorite);
     });
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.removeEventListener('click', () => {});
-        btn.addEventListener('click', () => deleteCircuit(btn.dataset.id));
-    });
+}
+
+// ========== FAVORITES ==========
+function toggleFavorite(e) {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const id = parseInt(btn.dataset.id);
+    const icon = btn.querySelector('i');
+    
+    if (favorites.has(id)) {
+        favorites.delete(id);
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+        btn.classList.remove('starred');
+    } else {
+        favorites.add(id);
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+        btn.classList.add('starred');
+    }
+    
+    localStorage.setItem('circuitScoutFavorites', JSON.stringify([...favorites]));
+    updateFavFilterButton();
+    
+    if (favFilterBtn && favFilterBtn.classList.contains('active')) {
+        applyFiltersAndReload();
+    }
+}
+
+function updateFavFilterButton() {
+    if (!favFilterBtn) return;
+    const hasFavorites = favorites.size > 0;
+    if (filterState.favorites && hasFavorites) {
+        favFilterBtn.classList.add('active');
+        favFilterBtn.innerHTML = '<i class="fas fa-star"></i> Favorites ON';
+    } else {
+        favFilterBtn.classList.remove('active');
+        favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
+    }
+}
+
+function applyFiltersAndReload() {
+    resetAndReload();
 }
 
 // ========== FILTER UI ==========
@@ -234,257 +337,80 @@ function setVerified(verified) {
 // ========== LOAD FILTER OPTIONS ==========
 async function loadFilterOptions() {
     try {
-        const res = await fetch(`${API_BASE}/filters`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const filters = await res.json();
+        let types = [];
+        let difficulties = [];
+        
+        if (isLocalhost) {
+            const res = await fetch(`${API_BASE}/filters`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const filters = await res.json();
+            types = filters.types || [];
+            difficulties = filters.difficulties || [];
+        } else {
+            if (!allCircuitsCache) {
+                const response = await fetch(`${API_BASE}/circuits.json`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                allCircuitsCache = await response.json();
+            }
+            types = [...new Set(allCircuitsCache.map(c => c.type).filter(t => t))];
+            difficulties = [...new Set(allCircuitsCache.map(c => c.difficulty).filter(d => d))];
+        }
         
         if (typeSelect) {
             typeSelect.innerHTML = '<option value="">All types</option>' + 
-                (filters.types || []).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+                types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
         }
         
         if (difficultySelect) {
             difficultySelect.innerHTML = '<option value="">Any level</option>' + 
-                (filters.difficulties || []).map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+                difficulties.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
         }
         
-        // Also update stats
-        const statsRes = await fetch(`${API_BASE}/stats`);
-        if (statsRes.ok) {
-            const stats = await statsRes.json();
-            const statsElement = document.getElementById('stats');
-            if (statsElement) {
-                statsElement.innerHTML = `<i class="fas fa-database"></i> ${stats.total || 0} circuits • ${stats.verified || 0} verified`;
+        // Update stats
+        if (!isLocalhost && allCircuitsCache) {
+            const statsElem = document.getElementById('stats');
+            if (statsElem) {
+                const verifiedCount = allCircuitsCache.filter(c => c.verified).length;
+                statsElem.innerHTML = `<i class="fas fa-database"></i> ${allCircuitsCache.length} circuits • ${verifiedCount} verified`;
+            }
+        } else if (isLocalhost) {
+            const statsRes = await fetch(`${API_BASE}/stats`);
+            if (statsRes.ok) {
+                const stats = await statsRes.json();
+                const statsElem = document.getElementById('stats');
+                if (statsElem) {
+                    statsElem.innerHTML = `<i class="fas fa-database"></i> ${stats.total || 0} circuits • ${stats.verified || 0} verified`;
+                }
             }
         }
         
     } catch (error) {
         console.error('Failed to load filter options:', error);
-        // Show error in stats area
-        const statsElement = document.getElementById('stats');
-        if (statsElement) {
-            statsElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Connection error - make sure server is running on port 3000`;
+        const statsElem = document.getElementById('stats');
+        if (statsElem) {
+            statsElem.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error loading data`;
         }
     }
 }
 
-// ========== STATS AND FEEDS ==========
-async function loadStats() {
-    try {
-        const res = await fetch(`${API_BASE}/stats`);
-        const stats = await res.json();
-        document.getElementById('total-count').textContent = stats.total || 0;
-    } catch (err) {
-        document.getElementById('total-count').textContent = '?';
-    }
-}
-
-async function loadFeeds() {
-    try {
-        const res = await fetch(`${API_BASE}/feeds`);
-        const feeds = await res.json();
-        document.getElementById('feed-count').textContent = feeds.length || 0;
-        const container = document.getElementById('feeds-list');
-        if (!feeds.length) {
-            container.innerHTML = '<div class="empty">No RSS feeds added yet. Add one above.</div>';
+// ========== FAVORITES FILTER ==========
+function toggleFavFilter() {
+    if (!favFilterBtn) return;
+    
+    if (filterState.favorites) {
+        filterState.favorites = false;
+        favFilterBtn.classList.remove('active');
+        favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
+    } else {
+        if (favorites.size === 0) {
+            alert('You have no favorite circuits yet. Click the star on any circuit to add it to favorites.');
             return;
         }
-        container.innerHTML = feeds.map(feed => `
-            <div class="feed-item" data-id="${feed.id}">
-                <div class="feed-info">
-                    <strong>${escapeHtml(feed.name)}</strong>
-                    <small>${escapeHtml(feed.blog_url || feed.url)}</small>
-                    ${feed.last_scraped ? `<small>Last scraped: ${new Date(feed.last_scraped).toLocaleString()}</small>` : ''}
-                </div>
-                <div class="feed-actions">
-                    <button class="toggle-feed-btn ${feed.enabled ? 'enabled' : 'disabled'}" data-id="${feed.id}">${feed.enabled ? 'Disable' : 'Enable'}</button>
-                    <button class="delete-feed-btn" data-id="${feed.id}"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-        `).join('');
-        document.querySelectorAll('.toggle-feed-btn').forEach(btn => btn.addEventListener('click', () => toggleFeed(btn.dataset.id)));
-        document.querySelectorAll('.delete-feed-btn').forEach(btn => btn.addEventListener('click', () => deleteFeed(btn.dataset.id)));
-    } catch (err) { console.error(err); }
-}
-
-async function addFeed() {
-    const url = document.getElementById('feed-url').value.trim();
-    const name = document.getElementById('feed-name').value.trim();
-    if (!url) return showAlert('Please enter a URL', 'Error');
-    
-    const button = document.getElementById('add-feed-btn');
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Adding...';
-    button.disabled = true;
-    
-    try {
-        const res = await fetch(`${API_BASE}/feeds`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, name })
-        });
-        const result = await res.json();
-        if (res.ok) {
-            document.getElementById('feed-url').value = '';
-            document.getElementById('feed-name').value = '';
-            await loadFeeds();
-            button.innerHTML = '<i class="fas fa-check"></i> Added!';
-            setTimeout(() => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }, 2000);
-            setTimeout(() => {
-                resetAndReload();
-                loadStats();
-            }, 3000);
-        } else {
-            button.innerHTML = originalText;
-            button.disabled = false;
-            await showAlert(result.error || 'Failed to add feed', 'Error');
-        }
-    } catch (err) {
-        button.innerHTML = originalText;
-        button.disabled = false;
-        await showAlert('Failed to add feed: ' + err.message, 'Error');
+        filterState.favorites = true;
+        favFilterBtn.classList.add('active');
+        favFilterBtn.innerHTML = '<i class="fas fa-star"></i> Favorites ON';
     }
-}
-
-async function toggleFeed(id) {
-    await fetch(`${API_BASE}/feeds/${id}/toggle`, { method: 'PATCH' });
-    await loadFeeds();
-}
-
-async function deleteFeed(id) {
-    const confirmed = await showConfirm('Remove this RSS feed?', 'Confirm');
-    if (confirmed) {
-        await fetch(`${API_BASE}/feeds/${id}`, { method: 'DELETE' });
-        await loadFeeds();
-        await showAlert('Feed removed', 'Deleted');
-    }
-}
-
-async function addCircuit(data) {
-    const res = await fetch(`${API_BASE}/circuits`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-    });
-    if (res.ok) {
-        resetAndReload();
-        loadStats();
-        document.getElementById('add-circuit-form').reset();
-        await showAlert('Circuit saved!', 'Success');
-    }
-}
-
-async function deleteCircuit(id) {
-    if (await showConfirm('Delete this circuit?', 'Confirm')) {
-        await fetch(`${API_BASE}/circuits/${id}`, { method: 'DELETE' });
-        resetAndReload();
-        loadStats();
-        await showAlert('Circuit deleted', 'Deleted');
-    }
-}
-
-async function editCircuit(id) {
-    const response = await fetch(`${API_BASE}/circuits/${id}`);
-    const circuit = await response.json();
-    if (!circuit) return;
-    const newName = await showPrompt('Edit circuit name:', circuit.effect_name, 'Edit Circuit');
-    if (newName && newName.trim()) {
-        circuit.effect_name = newName.trim();
-        await fetch(`${API_BASE}/circuits/${id}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(circuit)
-        });
-        resetAndReload();
-        await showAlert('Circuit updated', 'Updated');
-    }
-}
-
-async function runScraper() {
-    const button = document.getElementById('run-scraper-btn');
-    const originalText = button.innerHTML;
-    
-    button.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Scraping...';
-    button.disabled = true;
-    
-    try {
-        const res = await fetch(`${API_BASE}/scrape`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({}) 
-        });
-        
-        button.innerHTML = '<i class="fas fa-check"></i> Complete!';
-        
-        setTimeout(() => {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }, 2000);
-        
-        setTimeout(() => {
-            resetAndReload();
-            loadStats();
-            loadFeeds();
-        }, 3000);
-        
-    } catch (err) {
-        button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed';
-        setTimeout(() => {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }, 2000);
-        await showAlert('Scraping failed: ' + err.message, 'Error');
-    }
-}
-
-// ========== MODAL FUNCTIONS ==========
-function showConfirm(message, title = 'Confirm') {
-    return new Promise((resolve) => {
-        const overlay = document.getElementById('modal-overlay');
-        document.getElementById('modal-title').textContent = title;
-        document.getElementById('modal-message').textContent = message;
-        overlay.style.display = 'flex';
-        const confirm = () => { overlay.style.display = 'none'; cleanup(); resolve(true); };
-        const cancel = () => { overlay.style.display = 'none'; cleanup(); resolve(false); };
-        const cleanup = () => {
-            document.getElementById('modal-confirm').removeEventListener('click', confirm);
-            document.getElementById('modal-cancel').removeEventListener('click', cancel);
-        };
-        document.getElementById('modal-confirm').addEventListener('click', confirm);
-        document.getElementById('modal-cancel').addEventListener('click', cancel);
-    });
-}
-
-function showAlert(message, title = 'Notice') {
-    return new Promise((resolve) => {
-        const overlay = document.getElementById('alert-modal');
-        overlay.querySelector('.modal-title').textContent = title;
-        document.getElementById('alert-message').textContent = message;
-        overlay.style.display = 'flex';
-        const ok = () => { overlay.style.display = 'none'; document.getElementById('alert-ok').removeEventListener('click', ok); resolve(); };
-        document.getElementById('alert-ok').addEventListener('click', ok);
-    });
-}
-
-function showPrompt(message, defaultValue = '', title = 'Enter value') {
-    return new Promise((resolve) => {
-        const overlay = document.getElementById('prompt-modal');
-        document.getElementById('prompt-title').textContent = title;
-        document.getElementById('prompt-message').textContent = message;
-        const input = document.getElementById('prompt-input');
-        input.value = defaultValue;
-        overlay.style.display = 'flex';
-        input.focus();
-        const confirm = () => { overlay.style.display = 'none'; cleanup(); resolve(input.value); };
-        const cancel = () => { overlay.style.display = 'none'; cleanup(); resolve(null); };
-        const cleanup = () => {
-            document.getElementById('prompt-confirm').removeEventListener('click', confirm);
-            document.getElementById('prompt-cancel').removeEventListener('click', cancel);
-            input.removeEventListener('keypress', enter);
-        };
-        const enter = (e) => { if (e.key === 'Enter') confirm(); };
-        document.getElementById('prompt-confirm').addEventListener('click', confirm);
-        document.getElementById('prompt-cancel').addEventListener('click', cancel);
-        input.addEventListener('keypress', enter);
-    });
+    resetAndReload();
 }
 
 // ========== HELPER FUNCTIONS ==========
@@ -494,25 +420,6 @@ function escapeHtml(str) {
 }
 
 // ========== EVENT LISTENERS ==========
-document.getElementById('add-feed-form')?.addEventListener('submit', (e) => { e.preventDefault(); addFeed(); });
-document.getElementById('add-circuit-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const tags = document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t);
-    addCircuit({
-        url: document.getElementById('url').value,
-        effect_name: document.getElementById('effect_name').value,
-        type: document.getElementById('type').value,
-        parts_count: parseInt(document.getElementById('parts_count').value) || null,
-        difficulty: document.getElementById('difficulty').value,
-        tags: tags,
-        category: document.getElementById('category').value,
-        verified: document.getElementById('verified').value === 'true',
-        image_url: document.getElementById('image_url').value || null
-    });
-});
-document.getElementById('run-scraper-btn')?.addEventListener('click', runScraper);
-
-// Filter event listeners
 if (searchInput) {
     searchInput.addEventListener('input', (e) => {
         filterState.search = e.target.value;
@@ -549,21 +456,33 @@ if (resetFiltersBtn) {
             type: '',
             difficulty: '',
             category: 'all',
-            verified: 'all'
+            verified: 'all',
+            favorites: false
         };
         if (searchInput) searchInput.value = '';
         if (typeSelect) typeSelect.value = '';
         if (difficultySelect) difficultySelect.value = '';
         updateCategoryButtonsUI();
         updateVerifiedButtonsUI();
+        if (favFilterBtn) {
+            favFilterBtn.classList.remove('active');
+            favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
+        }
+        filterState.favorites = false;
         resetAndReload();
     });
 }
 
+if (favFilterBtn) {
+    favFilterBtn.addEventListener('click', toggleFavFilter);
+}
+
+if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+}
+
 // ========== INITIALIZE ==========
+initTheme();
 loadFilterOptions();
-loadStats();
-loadFeeds();
-initCollapsible();
 setupInfiniteScroll();
 resetAndReload();
