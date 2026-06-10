@@ -5,25 +5,34 @@ on:
     - cron: '0 */12 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      - run: npm install
+      - name: Install dependencies
+        run: npm install
       
-      - run: node scraper.js
+      - name: Run scraper
+        run: node scraper.js
+        env:
+          NODE_ENV: production
       
       - name: Commit and push changes
         run: |
-          git config user.name "GitHub Action"
-          git config user.email "action@github.com"
-          git add data/circuits.json
-          git diff --staged --quiet || git commit -m "Auto-scrape: update circuits"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/circuits.json circuits.db
+          git diff --staged --quiet || git commit -m "Auto-scrape: update circuits database"
           git push
