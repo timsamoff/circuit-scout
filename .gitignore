@@ -2,8 +2,8 @@
 node_modules/
 package-lock.json
 
-# Database (local only - DO NOT COMMIT)
-circuits.db
+# Database
+# circuits.db
 *.db-journal
 
 # Environment
