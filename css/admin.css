@@ -21,6 +21,7 @@
     --admin-card: #1a3a4f;
     --accent-cyan: #2dd4bf;
     --accent-blue: #0ea5e9;
+    --accent-teal: #14b8a6;
     --text-light: #e8f4f8;
     --text-muted: #94a3b8;
     --border: #2a4a63;
@@ -397,6 +398,74 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
 
 .loading { text-align: center; padding: 2rem; color: var(--text-muted); }
 .empty { text-align: center; padding: 1rem; color: var(--text-muted); }
+
+/* Scraper Status Bar */
+.scraper-status-bar {
+    background: var(--admin-surface);
+    border: 1px solid var(--border-glow);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.scraper-status-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    color: var(--accent-cyan);
+    font-size: 0.875rem;
+}
+
+.scraper-status-content i {
+    font-size: 1rem;
+}
+
+.scraper-status-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.scraper-refresh-btn,
+.scraper-cancel-btn {
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scraper-refresh-btn:hover {
+    background: var(--btn-secondary-hover);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.scraper-cancel-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.scraper-cancel-btn:disabled,
+.scraper-refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
 /* Modal Styles */
 .modal-overlay {

@@ -13,7 +13,7 @@
  * ============================================================================
  */
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 // Pagination state
 let currentPage = 1;
@@ -21,6 +21,7 @@ let totalPages = 1;
 let isLoading = false;
 let hasMore = true;
 let totalResults = 0;
+let statusInterval = null;
 
 let filterState = {
     search: '',
@@ -44,6 +45,63 @@ const verifiedOnlyBtn = document.getElementById('admin-verified-only-btn');
 const unverifiedOnlyBtn = document.getElementById('admin-unverified-only-btn');
 const resetFiltersBtn = document.getElementById('admin-reset-filters');
 
+// ========== SCRAPER STATUS POLLING ==========
+async function checkScraperStatus() {
+    try {
+        const res = await fetch(`${API_BASE}/scrape/status`);
+        const status = await res.json();
+        
+        const statusBar = document.getElementById('scraper-status-bar');
+        const statusText = document.getElementById('scraper-status-text');
+        const cancelBtn = document.getElementById('scraper-cancel-btn');
+        const runBtn = document.getElementById('run-scraper-btn');
+        
+        if (status.running) {
+            if (statusBar) statusBar.style.display = 'flex';
+            if (statusText) {
+                const elapsed = status.startTime ? Math.floor((Date.now() - status.startTime) / 1000) : 0;
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                let statusMsg = `${status.currentFeed || 'Initializing'} - Page ${status.currentPage || 0} - ${status.itemsAdded} added (${minutes}:${seconds.toString().padStart(2, '0')})`;
+                if (status.error === 'Cancelled by user') {
+                    statusMsg = 'Cancelled by user';
+                }
+                statusText.innerHTML = statusMsg;
+            }
+            if (cancelBtn) cancelBtn.disabled = false;
+            if (runBtn) runBtn.disabled = true;
+        } else {
+            if (statusBar && statusBar.style.display !== 'none') {
+                statusBar.style.display = 'none';
+                if (statusInterval) {
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                }
+                // Re-enable run button
+                if (runBtn) runBtn.disabled = false;
+                // Refresh data when scraper stops
+                resetAndReload();
+                loadStats();
+                loadFeeds();
+                
+                // Show completion message if it wasn't an error
+                if (status.error === 'Cancelled by user') {
+                    await showAlert('Scraping cancelled by user.', 'Cancelled');
+                } else if (status.itemsAdded > 0 || status.itemsSkipped > 0) {
+                    await showAlert(`Scraping complete!\n\nAdded: ${status.itemsAdded} circuits\nSkipped: ${status.itemsSkipped} duplicates`, 'Complete');
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Status check error:", err);
+    }
+}
+
+function startStatusPolling() {
+    if (statusInterval) clearInterval(statusInterval);
+    statusInterval = setInterval(checkScraperStatus, 2000);
+}
+
 // ========== COLLAPSIBLE SECTIONS ==========
 function initCollapsible() {
     const collapsibles = document.querySelectorAll('.collapsible');
@@ -55,16 +113,13 @@ function initCollapsible() {
         
         if (!header || !content) return;
         
-        // Toggle function
         const toggleCollapse = (e) => {
             e.stopPropagation();
             collapsible.classList.toggle('collapsed');
         };
         
-        // Add click listener to header
         header.addEventListener('click', toggleCollapse);
         
-        // Add click listener to button
         if (collapseBtn) {
             collapseBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -82,7 +137,7 @@ async function loadMoreCircuits(reset = false) {
     if (reset) {
         currentPage = 1;
         hasMore = true;
-        if (circuitsContainer) circuitsContainer.innerHTML = '';
+        if (circuitsContainer) circuitsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading circuits...</div>';
         if (loadingTrigger) loadingTrigger.style.display = 'block';
     }
     
@@ -242,9 +297,11 @@ async function loadStats() {
     try {
         const res = await fetch(`${API_BASE}/stats`);
         const stats = await res.json();
-        document.getElementById('total-count').textContent = stats.total || 0;
+        const totalElem = document.getElementById('total-count');
+        if (totalElem) totalElem.textContent = stats.total || 0;
     } catch (err) {
-        document.getElementById('total-count').textContent = '?';
+        const totalElem = document.getElementById('total-count');
+        if (totalElem) totalElem.textContent = '?';
     }
 }
 
@@ -252,12 +309,17 @@ async function loadFeeds() {
     try {
         const res = await fetch(`${API_BASE}/feeds`);
         const feeds = await res.json();
-        document.getElementById('feed-count').textContent = feeds.length || 0;
+        const feedCountElem = document.getElementById('feed-count');
+        if (feedCountElem) feedCountElem.textContent = feeds.length || 0;
+        
         const container = document.getElementById('feeds-list');
+        if (!container) return;
+        
         if (!feeds.length) {
             container.innerHTML = '<div class="empty">No RSS feeds added yet. Add one above.</div>';
             return;
         }
+        
         container.innerHTML = feeds.map(feed => `
             <div class="feed-item" data-id="${feed.id}">
                 <div class="feed-info">
@@ -271,6 +333,7 @@ async function loadFeeds() {
                 </div>
             </div>
         `).join('');
+        
         document.querySelectorAll('.toggle-feed-btn').forEach(btn => btn.addEventListener('click', () => toggleFeed(btn.dataset.id)));
         document.querySelectorAll('.delete-feed-btn').forEach(btn => btn.addEventListener('click', () => deleteFeed(btn.dataset.id)));
     } catch (err) { console.error(err); }
@@ -338,7 +401,8 @@ async function addCircuit(data) {
     if (res.ok) {
         resetAndReload();
         loadStats();
-        document.getElementById('add-circuit-form').reset();
+        const form = document.getElementById('add-circuit-form');
+        if (form) form.reset();
         await showAlert('Circuit saved!', 'Success');
     }
 }
@@ -367,11 +431,90 @@ async function editCircuit(id) {
     }
 }
 
+async function cleanDuplicates() {
+    const button = document.getElementById('cleanup-btn');
+    if (!button) return;
+    
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cleaning...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch(`${API_BASE}/cleanup`, { method: 'POST' });
+        const result = await response.json();
+        
+        await showAlert(`Cleanup complete! Removed ${result.dbRemoved} from DB and ${result.jsonRemoved} from JSON.`, 'Success');
+        
+        resetAndReload();
+        loadStats();
+        
+    } catch (err) {
+        await showAlert('Cleanup failed: ' + err.message, 'Error');
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+}
+
+async function cancelScraper() {
+    const cancelBtn = document.getElementById('scraper-cancel-btn');
+    if (!cancelBtn) return;
+    
+    const originalIcon = cancelBtn.innerHTML;
+    cancelBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i>';
+    cancelBtn.disabled = true;
+    
+    try {
+        console.log("Sending cancel request...");
+        const response = await fetch(`${API_BASE}/scrape/cancel`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("Cancel response not OK:", response.status, text);
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log("Cancel response:", result);
+        
+        // Update status text immediately
+        const statusText = document.getElementById('scraper-status-text');
+        if (statusText) {
+            statusText.innerHTML = 'Cancelling...';
+        }
+        
+        // Show a brief alert to confirm cancellation was requested
+        await showAlert('Cancellation requested. The scraper will stop after the current page completes.', 'Cancelling');
+        
+    } catch (err) {
+        console.error("Cancel error:", err);
+        await showAlert('Cancel failed: ' + err.message, 'Error');
+    } finally {
+        cancelBtn.innerHTML = originalIcon;
+        cancelBtn.disabled = false;
+    }
+}
+
 async function runScraper() {
     const button = document.getElementById('run-scraper-btn');
     const originalText = button.innerHTML;
     
-    button.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Scraping...';
+    // Check if scraper is already running
+    try {
+        const statusRes = await fetch(`${API_BASE}/scrape/status`);
+        const status = await statusRes.json();
+        if (status.running) {
+            await showAlert('Scraper is already running! Check the status bar below.', 'Already Running');
+            return;
+        }
+    } catch (err) {
+        console.error("Status check failed:", err);
+    }
+    
+    button.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Starting...';
     button.disabled = true;
     
     try {
@@ -381,20 +524,22 @@ async function runScraper() {
             body: JSON.stringify({}) 
         });
         
-        button.innerHTML = '<i class="fas fa-check"></i> Complete!';
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        
+        button.innerHTML = '<i class="fas fa-check"></i> Started!';
+        
+        // Start polling for status
+        startStatusPolling();
         
         setTimeout(() => {
             button.innerHTML = originalText;
-            button.disabled = false;
+            // Don't re-enable here - status check will re-enable when scraper stops
         }, 2000);
         
-        setTimeout(() => {
-            resetAndReload();
-            loadStats();
-            loadFeeds();
-        }, 3000);
-        
     } catch (err) {
+        console.error("Scrape error:", err);
         button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed';
         setTimeout(() => {
             button.innerHTML = originalText;
@@ -408,51 +553,55 @@ async function runScraper() {
 function showConfirm(message, title = 'Confirm') {
     return new Promise((resolve) => {
         const overlay = document.getElementById('modal-overlay');
+        if (!overlay) return resolve(false);
         document.getElementById('modal-title').textContent = title;
         document.getElementById('modal-message').textContent = message;
         overlay.style.display = 'flex';
         const confirm = () => { overlay.style.display = 'none'; cleanup(); resolve(true); };
         const cancel = () => { overlay.style.display = 'none'; cleanup(); resolve(false); };
         const cleanup = () => {
-            document.getElementById('modal-confirm').removeEventListener('click', confirm);
-            document.getElementById('modal-cancel').removeEventListener('click', cancel);
+            document.getElementById('modal-confirm')?.removeEventListener('click', confirm);
+            document.getElementById('modal-cancel')?.removeEventListener('click', cancel);
         };
-        document.getElementById('modal-confirm').addEventListener('click', confirm);
-        document.getElementById('modal-cancel').addEventListener('click', cancel);
+        document.getElementById('modal-confirm')?.addEventListener('click', confirm);
+        document.getElementById('modal-cancel')?.addEventListener('click', cancel);
     });
 }
 
 function showAlert(message, title = 'Notice') {
     return new Promise((resolve) => {
         const overlay = document.getElementById('alert-modal');
-        overlay.querySelector('.modal-title').textContent = title;
+        if (!overlay) return resolve();
+        const titleElem = overlay.querySelector('.modal-title');
+        if (titleElem) titleElem.textContent = title;
         document.getElementById('alert-message').textContent = message;
         overlay.style.display = 'flex';
-        const ok = () => { overlay.style.display = 'none'; document.getElementById('alert-ok').removeEventListener('click', ok); resolve(); };
-        document.getElementById('alert-ok').addEventListener('click', ok);
+        const ok = () => { overlay.style.display = 'none'; document.getElementById('alert-ok')?.removeEventListener('click', ok); resolve(); };
+        document.getElementById('alert-ok')?.addEventListener('click', ok);
     });
 }
 
 function showPrompt(message, defaultValue = '', title = 'Enter value') {
     return new Promise((resolve) => {
         const overlay = document.getElementById('prompt-modal');
+        if (!overlay) return resolve(null);
         document.getElementById('prompt-title').textContent = title;
         document.getElementById('prompt-message').textContent = message;
         const input = document.getElementById('prompt-input');
-        input.value = defaultValue;
+        if (input) input.value = defaultValue;
         overlay.style.display = 'flex';
-        input.focus();
-        const confirm = () => { overlay.style.display = 'none'; cleanup(); resolve(input.value); };
+        if (input) input.focus();
+        const confirm = () => { overlay.style.display = 'none'; cleanup(); resolve(input?.value || ''); };
         const cancel = () => { overlay.style.display = 'none'; cleanup(); resolve(null); };
         const cleanup = () => {
-            document.getElementById('prompt-confirm').removeEventListener('click', confirm);
-            document.getElementById('prompt-cancel').removeEventListener('click', cancel);
-            input.removeEventListener('keypress', enter);
+            document.getElementById('prompt-confirm')?.removeEventListener('click', confirm);
+            document.getElementById('prompt-cancel')?.removeEventListener('click', cancel);
+            if (input) input.removeEventListener('keypress', enter);
         };
         const enter = (e) => { if (e.key === 'Enter') confirm(); };
-        document.getElementById('prompt-confirm').addEventListener('click', confirm);
-        document.getElementById('prompt-cancel').addEventListener('click', cancel);
-        input.addEventListener('keypress', enter);
+        document.getElementById('prompt-confirm')?.addEventListener('click', confirm);
+        document.getElementById('prompt-cancel')?.addEventListener('click', cancel);
+        if (input) input.addEventListener('keypress', enter);
     });
 }
 
@@ -480,6 +629,17 @@ document.getElementById('add-circuit-form')?.addEventListener('submit', (e) => {
     });
 });
 document.getElementById('run-scraper-btn')?.addEventListener('click', runScraper);
+document.getElementById('cleanup-btn')?.addEventListener('click', cleanDuplicates);
+
+// Cancel button on status bar
+document.getElementById('scraper-cancel-btn')?.addEventListener('click', cancelScraper);
+
+// Refresh button on status bar
+document.getElementById('scraper-refresh-btn')?.addEventListener('click', () => {
+    resetAndReload();
+    loadStats();
+    loadFeeds();
+});
 
 // Filter event listeners
 if (searchInput) {
@@ -536,3 +696,6 @@ loadFeeds();
 initCollapsible();
 setupInfiniteScroll();
 resetAndReload();
+
+// Start status polling on page load
+startStatusPolling();

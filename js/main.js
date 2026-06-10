@@ -82,8 +82,7 @@ async function loadMoreCircuits(reset = false) {
     if (reset) {
         currentPage = 1;
         hasMore = true;
-        if (circuitsContainer) circuitsContainer.innerHTML = '';
-        if (loadingTrigger) loadingTrigger.style.display = 'block';
+        if (circuitsContainer) circuitsContainer.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-pulse"></i> Loading circuits...</div>';
     }
     
     isLoading = true;
@@ -93,31 +92,46 @@ async function loadMoreCircuits(reset = false) {
             page: currentPage,
             limit: 20,
             search: filterState.search,
+            type: filterState.type,
+            difficulty: filterState.difficulty,
             category: filterState.category !== 'all' ? filterState.category : '',
             verified: filterState.verified === 'verified' ? 'true' : 
                      filterState.verified === 'unverified' ? 'false' : ''
         });
         
-        if (filterState.type) params.append('type', filterState.type);
-        if (filterState.difficulty) params.append('difficulty', filterState.difficulty);
+        // Remove empty params
+        for (const [key, value] of params.entries()) {
+            if (!value) params.delete(key);
+        }
         
+        console.log('Fetching:', `${API_BASE}/circuits?${params}`);
         const response = await fetch(`${API_BASE}/circuits?${params}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         totalResults = data.total;
-        
         renderCircuitsList(data.circuits, !reset);
         
         totalPages = data.totalPages;
         hasMore = currentPage < totalPages;
         currentPage++;
         
-        if (loadingTrigger && !hasMore) loadingTrigger.style.display = 'none';
+        if (loadingTrigger) {
+            loadingTrigger.style.display = hasMore ? 'block' : 'none';
+        }
         
     } catch (error) {
         console.error('Failed to load circuits:', error);
         if (circuitsContainer && reset) {
-            circuitsContainer.innerHTML = '<div class="loading">Error loading circuits. Make sure the server is running.</div>';
+            circuitsContainer.innerHTML = `<div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Error loading circuits. Make sure the server is running on port 3000.</p>
+                <p class="error-details">${error.message}</p>
+            </div>`;
         }
     } finally {
         isLoading = false;
@@ -221,6 +235,7 @@ function setVerified(verified) {
 async function loadFilterOptions() {
     try {
         const res = await fetch(`${API_BASE}/filters`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const filters = await res.json();
         
         if (typeSelect) {
@@ -232,8 +247,24 @@ async function loadFilterOptions() {
             difficultySelect.innerHTML = '<option value="">Any level</option>' + 
                 (filters.difficulties || []).map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
         }
+        
+        // Also update stats
+        const statsRes = await fetch(`${API_BASE}/stats`);
+        if (statsRes.ok) {
+            const stats = await statsRes.json();
+            const statsElement = document.getElementById('stats');
+            if (statsElement) {
+                statsElement.innerHTML = `<i class="fas fa-database"></i> ${stats.total || 0} circuits • ${stats.verified || 0} verified`;
+            }
+        }
+        
     } catch (error) {
         console.error('Failed to load filter options:', error);
+        // Show error in stats area
+        const statsElement = document.getElementById('stats');
+        if (statsElement) {
+            statsElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Connection error - make sure server is running on port 3000`;
+        }
     }
 }
 

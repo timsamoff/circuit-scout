@@ -1,19 +1,3 @@
-/*
- * ============================================================================
- * Circuit Scout - RSS/Atom Feed Scraper
- * Version 1.0.0
- * Designed & Developed by Tim Samoff
- * 
- * Scrapes RSS/Atom feeds from Blogger and other platforms
- * Supports pagination to fetch ALL posts
- * Auto-detects Atom vs RSS format
- * Exports directly to data/circuits.json
- * 
- * @license MIT
- * @see https://samoff.com/circuit-scout
- * ============================================================================
- */
-
 import axios from "axios";
 import { parseStringPromise } from "xml2js";
 import sqlite3 from 'sqlite3';
@@ -213,63 +197,85 @@ async function processAtomEntry(entry) {
     }
 }
 
+// Robust pagination - continues until no more items are returned
 async function fetchAllPages(baseFeedUrl, pageSize = 25) {
     console.log(`  Fetching feed: ${baseFeedUrl}`);
     
-    const firstResponse = await axios.get(baseFeedUrl, { 
-        timeout: 30000,
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/atom+xml, application/rss+xml, application/xml, text/xml, */*"
-        }
-    });
-    
-    let parsed = await parseStringPromise(firstResponse.data);
+    let allItems = [];
+    let page = 1;
+    let hasMore = true;
     let feedType = 'atom';
-    let allItems = parsed.feed?.entry || [];
     
-    if (!allItems.length && parsed.rss?.channel?.[0]?.item) {
-        feedType = 'rss';
-        allItems = parsed.rss.channel[0].item;
-    }
-    
-    const totalCount = parseInt(parsed.feed?.openSearch$totalResults?.[0]) || 0;
-    console.log(`  Detected: ${feedType.toUpperCase()} format, ${totalCount || allItems.length} posts`);
-    
-    if (totalCount > pageSize) {
-        const totalPages = Math.ceil(totalCount / pageSize);
-        console.log(`  Fetching ${totalPages} total pages...`);
+    while (hasMore) {
+        const startIndex = (page - 1) * pageSize + 1;
+        const pageUrl = `${baseFeedUrl}?start-index=${startIndex}&max-results=${pageSize}`;
         
-        for (let page = 2; page <= totalPages; page++) {
-            const startIndex = (page - 1) * pageSize + 1;
-            const pageUrl = `${baseFeedUrl}?start-index=${startIndex}&max-results=${pageSize}`;
+        if (page === 1) {
+            console.log(`    Fetching page 1...`);
+        } else {
+            console.log(`    Fetching page ${page} (items ${startIndex}+)...`);
+        }
+        
+        try {
+            const response = await axios.get(pageUrl, { 
+                timeout: 30000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "application/atom+xml, application/rss+xml, application/xml, text/xml, */*"
+                }
+            });
             
-            console.log(`    Page ${page}/${totalPages}...`);
+            const parsed = await parseStringPromise(response.data);
             
-            try {
-                const pageResponse = await axios.get(pageUrl, { 
-                    timeout: 30000,
-                    headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                        "Accept": "application/atom+xml, application/rss+xml, application/xml, text/xml, */*"
-                    }
-                });
-                
-                const pageParsed = await parseStringPromise(pageResponse.data);
-                const pageItems = pageParsed.feed?.entry || [];
-                allItems = [...allItems, ...pageItems];
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } catch (error) {
-                console.error(`    Error fetching page ${page}:`, error.message);
+            // Detect feed type on first page
+            if (page === 1) {
+                if (parsed.feed?.entry) {
+                    feedType = 'atom';
+                } else if (parsed.rss?.channel?.[0]?.item) {
+                    feedType = 'rss';
+                }
+                console.log(`    Detected: ${feedType.toUpperCase()} format`);
             }
+            
+            // Extract items based on feed type
+            let items = [];
+            if (feedType === 'atom') {
+                items = parsed.feed?.entry || [];
+            } else {
+                items = parsed.rss?.channel?.[0]?.item || [];
+            }
+            
+            if (items.length === 0) {
+                console.log(`    No more items found, stopping.`);
+                hasMore = false;
+                break;
+            }
+            
+            allItems = [...allItems, ...items];
+            console.log(`    Got ${items.length} items (total so far: ${allItems.length})`);
+            
+            // Stop if we got fewer items than requested (last page)
+            if (items.length < pageSize) {
+                console.log(`    Reached last page (got ${items.length} < ${pageSize})`);
+                hasMore = false;
+            }
+            
+            page++;
+            
+            // Be kind to the server - delay between requests
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+        } catch (error) {
+            console.error(`    Error fetching page ${page}:`, error.message);
+            hasMore = false;
         }
     }
     
-    console.log(`  Total items fetched: ${allItems.length}`);
+    console.log(`  ✅ Total items fetched: ${allItems.length}`);
     return { items: allItems, feedType };
 }
 
-async function exportToJSON(db) {
+async function autoExportToJSON(db) {
     return new Promise((resolve, reject) => {
         db.all("SELECT url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category FROM circuits ORDER BY created_at DESC", 
             async (err, rows) => {
@@ -311,7 +317,7 @@ async function exportToJSON(db) {
 }
 
 async function scrapeAllFeeds() {
-    console.log("🕷️ Starting paginated scraper...");
+    console.log("🕷️ Starting paginated scraper (robust mode)...");
     
     const db = new sqlite3.Database('./circuits.db');
     
@@ -337,7 +343,10 @@ async function scrapeAllFeeds() {
         
         try {
             const { items, feedType } = await fetchAllPages(feed.url);
-            console.log(`   Total items found: ${items.length}`);
+            console.log(`   Processing ${items.length} total items...`);
+            
+            let addedFromFeed = 0;
+            let skippedFromFeed = 0;
             
             for (const item of items) {
                 let link = "";
@@ -356,7 +365,7 @@ async function scrapeAllFeeds() {
                 });
                 
                 if (exists) {
-                    totalSkipped++;
+                    skippedFromFeed++;
                     continue;
                 }
                 
@@ -373,24 +382,27 @@ async function scrapeAllFeeds() {
                         (err) => { resolve(); });
                 });
                 
-                totalAdded++;
+                addedFromFeed++;
                 console.log(`   ✅ Added: ${extracted.effect_name}`);
             }
             
-            // Update last_scraped timestamp
+            totalAdded += addedFromFeed;
+            totalSkipped += skippedFromFeed;
+            console.log(`   📊 Feed summary: +${addedFromFeed} new, ${skippedFromFeed} duplicates`);
+            
             await new Promise((resolve) => {
                 db.run("UPDATE rss_feeds SET last_scraped = CURRENT_TIMESTAMP WHERE id = ?", [feed.id], () => resolve());
             });
             
         } catch (error) {
-            console.error(`   ❌ Error: ${error.message}`);
+            console.error(`   ❌ Error processing feed: ${error.message}`);
         }
     }
     
     console.log(`\n✅ Scraping complete! Added ${totalAdded} new circuits, Skipped ${totalSkipped} duplicates`);
     
     // Export to JSON
-    await exportToJSON(db);
+    await autoExportToJSON(db);
     
     db.close();
     return { added: totalAdded, skipped: totalSkipped };
@@ -399,18 +411,21 @@ async function scrapeAllFeeds() {
 // Export for use in server.js
 export async function runScraper(db, autoExportToJSON) {
     console.log("🕷️ Running scraper...");
-    const result = await scrapeAllFeeds();
-    return result;
+    return await scrapeAllFeeds();
 }
 
 export async function scrapeSingleFeed(db, autoExportToJSON, feedId) {
     console.log(`🕷️ Scraping single feed ID: ${feedId}`);
-    const result = await scrapeAllFeeds();
-    return result;
+    return await scrapeAllFeeds();
 }
 
-// Run directly if called from command line
-if (import.meta.url === `file://${process.argv[1]}` || 
-    import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
+// Run directly if called from command line - FIXED FOR WINDOWS
+const isRunningDirectly = process.argv[1] && (
+    process.argv[1].includes('scraper.js') || 
+    process.argv[1].endsWith('scraper.js')
+);
+
+if (isRunningDirectly) {
+    console.log("🚀 Running scraper directly...");
     scrapeAllFeeds().catch(console.error);
 }

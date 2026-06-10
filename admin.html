@@ -24,9 +24,26 @@
             <h1 class="nav-title"><i class="fas fa-microchip"></i> Circuit Scout Admin</h1>
             <div class="nav-actions">
                 <button id="run-scraper-btn" class="btn-primary"><i class="fas fa-spider"></i> Run Scraper</button>
+                <button id="cleanup-btn" class="btn-secondary-nav"><i class="fas fa-broom"></i> Clean Duplicates</button>
                 <a href="/" class="btn-secondary-nav" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> View Site</a>
             </div>
         </nav>
+
+        <!-- Scraper Status Bar -->
+        <div id="scraper-status-bar" class="scraper-status-bar" style="display: none;">
+            <div class="scraper-status-content">
+                <i class="fas fa-spinner fa-pulse"></i>
+                <span id="scraper-status-text">Initializing...</span>
+            </div>
+            <div class="scraper-status-actions">
+                <button id="scraper-cancel-btn" class="scraper-cancel-btn" title="Cancel Scraping">
+                    <i class="fas fa-times"></i>
+                </button>
+                <button id="scraper-refresh-btn" class="scraper-refresh-btn" title="Refresh Results">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
 
         <div class="admin-grid">
             <!-- Stats Panel -->
