@@ -82,6 +82,32 @@ function toggleTheme() {
     }
 }
 
+// ========== FAVORITES MODAL ==========
+function showFavoritesModal() {
+    // Remove existing modal if present
+    const existingModal = document.querySelector('.favorites-modal-overlay');
+    if (existingModal) existingModal.remove();
+    
+    const modal = document.createElement('div');
+    modal.className = 'favorites-modal-overlay';
+    modal.innerHTML = `
+        <div class="favorites-modal">
+            <i class="far fa-star"></i>
+            <h3>No Favorites Yet</h3>
+            <p>Click the star icon on any circuit to add it to your favorites!</p>
+            <button onclick="this.closest('.favorites-modal-overlay').remove()">Got it!</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
 // ========== LOAD CIRCUITS ==========
 async function loadCircuitsFromJSON() {
     try {
@@ -397,9 +423,13 @@ async function loadFilterOptions() {
             difficulties = [...new Set(allCircuitsCache.map(c => c.difficulty).filter(d => d))];
         }
         
+        // Sort difficulties in proper order: Beginner, Intermediate, Advanced, Expert
+        const difficultyOrder = { 'Beginner': 1, 'Intermediate': 2, 'Advanced': 3, 'Expert': 4 };
+        difficulties.sort((a, b) => (difficultyOrder[a] || 99) - (difficultyOrder[b] || 99));
+        
         if (typeSelect) {
             typeSelect.innerHTML = '<option value="">All types</option>' + 
-                types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+                types.sort().map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
         }
         
         if (difficultySelect) {
@@ -444,7 +474,7 @@ function toggleFavFilter() {
         favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
     } else {
         if (favorites.size === 0) {
-            alert('You have no favorite circuits yet. Click the star on any circuit to add it to favorites.');
+            showFavoritesModal();  // This should show the modal
             return;
         }
         filterState.favorites = true;

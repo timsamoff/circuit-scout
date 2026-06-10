@@ -553,3 +553,14 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
     background: var(--modal-btn-cancel-hover);
     border-color: var(--danger);
 }
+
+/* Dropdown options styling for admin */
+.filter-select option {
+    background: var(--admin-surface);
+    color: var(--text-light);
+    padding: 0.5rem;
+}
+
+.filter-select option:hover {
+    background: var(--accent-cyan);
+}

@@ -273,19 +273,24 @@ function setVerified(verified) {
 }
 
 // ========== LOAD FILTER OPTIONS ==========
+// ========== LOAD FILTER OPTIONS ==========
 async function loadFilterOptions() {
     try {
         const res = await fetch(`${API_BASE}/filters`);
         const filters = await res.json();
         
+        // Sort difficulties in proper order: Beginner, Intermediate, Advanced, Expert
+        const difficultyOrder = { 'Beginner': 1, 'Intermediate': 2, 'Advanced': 3, 'Expert': 4 };
+        const sortedDifficulties = (filters.difficulties || []).sort((a, b) => (difficultyOrder[a] || 99) - (difficultyOrder[b] || 99));
+        
         if (typeSelect) {
             typeSelect.innerHTML = '<option value="">All types</option>' + 
-                (filters.types || []).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+                (filters.types || []).sort().map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
         }
         
         if (difficultySelect) {
             difficultySelect.innerHTML = '<option value="">Any level</option>' + 
-                (filters.difficulties || []).map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+                sortedDifficulties.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
         }
     } catch (error) {
         console.error('Failed to load filter options:', error);
