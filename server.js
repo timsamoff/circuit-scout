@@ -55,28 +55,93 @@ app.get("/browserconfig.xml", (req, res) => {
     </browserconfig>`);
 });
 
-// Helper to construct RSS feed URL from blog URL
-function getRssUrl(blogUrl) {
-    let cleanUrl = blogUrl.replace(/\/$/, '');
-    // Remove trailing /feeds/posts/default if present
-    cleanUrl = cleanUrl.replace(/\/feeds\/posts\/default.*$/, '');
-    cleanUrl = cleanUrl.replace(/\/feeds\/posts.*$/, '');
-    cleanUrl = cleanUrl.replace(/\/feeds.*$/, '');
+// Convert HTML entities to human-readable characters
+function decodeHtmlEntities(text) {
+    if (!text) return '';
     
-    // Return the Atom feed URL (works best with Blogger)
-    return `${cleanUrl}/feeds/posts/default`;
+    const entities = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#038;': '&',
+        '&#8217;': "'",
+        '&#8220;': '"',
+        '&#8221;': '"',
+        '&#8216;': "'",
+        '&#8211;': '-',
+        '&#8212;': '--',
+        '&#8230;': '...',
+        '&nbsp;': ' ',
+        '&copy;': '©',
+        '&reg;': '®',
+        '&trade;': '™'
+    };
+    
+    let decoded = text;
+    for (const [entity, char] of Object.entries(entities)) {
+        decoded = decoded.split(entity).join(char);
+    }
+    
+    // Also handle numeric entities like &#123;
+    decoded = decoded.replace(/&#(\d+);/g, (match, num) => {
+        return String.fromCharCode(parseInt(num, 10));
+    });
+    
+    // Handle hex entities like &#x3C;
+    decoded = decoded.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => {
+        return String.fromCharCode(parseInt(hex, 16));
+    });
+    
+    return decoded;
 }
 
-// Alternative RSS feed URL
-function getAltRssUrl(blogUrl) {
+// Helper to construct RSS feed URL (works for both Blogger and generic feeds)
+function getRssUrl(blogUrl, label = null) {
+    if (blogUrl.includes('/feed') || blogUrl.includes('/rss') || blogUrl.includes('/atom')) {
+        return blogUrl;
+    }
+    
     let cleanUrl = blogUrl.replace(/\/$/, '');
     cleanUrl = cleanUrl.replace(/\/feeds\/posts\/default.*$/, '');
     cleanUrl = cleanUrl.replace(/\/feeds\/posts.*$/, '');
     cleanUrl = cleanUrl.replace(/\/feeds.*$/, '');
-    return `${cleanUrl}/feeds/posts/default?alt=rss`;
+    cleanUrl = cleanUrl.replace(/\/search\/label\/.*$/, '');
+    
+    if (cleanUrl.includes('blogspot.com')) {
+        let feedUrl = `${cleanUrl}/feeds/posts/default`;
+        if (label && label.trim() !== '') {
+            const encodedLabel = encodeURIComponent(label.trim());
+            feedUrl = `${feedUrl}/-/${encodedLabel}`;
+        }
+        return feedUrl;
+    }
+    
+    if (label && label.trim() !== '') {
+        return `${cleanUrl}/category/${encodeURIComponent(label.trim())}/feed`;
+    }
+    
+    return `${cleanUrl}/feed`;
 }
 
-// Test if a feed URL is valid
+function getAltRssUrl(blogUrl, label = null) {
+    let cleanUrl = blogUrl.replace(/\/$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds\/posts\/default.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds\/posts.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/search\/label\/.*$/, '');
+    
+    let feedUrl = `${cleanUrl}/feeds/posts/default?alt=rss`;
+    
+    if (label && label.trim() !== '') {
+        const encodedLabel = encodeURIComponent(label.trim());
+        feedUrl = `${cleanUrl}/feeds/posts/default/-/${encodedLabel}?alt=rss`;
+    }
+    
+    return feedUrl;
+}
+
 async function isFeedUrlValid(feedUrl) {
     try {
         const response = await axios.get(feedUrl, {
@@ -91,10 +156,35 @@ async function isFeedUrlValid(feedUrl) {
     }
 }
 
+async function findValidFeedUrl(baseUrl) {
+    const feedPaths = [
+        '/feed', '/feed/', '/?feed=rss2', '/?feed=rss', '/feed/rss',
+        '/rss', '/feed/atom', '/atom', '/rss.xml', '/feed.xml'
+    ];
+    
+    let cleanUrl = baseUrl.replace(/\/$/, '');
+    
+    if (cleanUrl.includes('/feed') || cleanUrl.includes('/rss') || cleanUrl.includes('/atom')) {
+        const isValid = await isFeedUrlValid(cleanUrl);
+        if (isValid) return cleanUrl;
+    }
+    
+    for (const path of feedPaths) {
+        const testUrl = `${cleanUrl}${path}`;
+        console.log(`    Trying feed URL: ${testUrl}`);
+        const isValid = await isFeedUrlValid(testUrl);
+        if (isValid) {
+            console.log(`    ✅ Found working feed: ${testUrl}`);
+            return testUrl;
+        }
+    }
+    
+    return null;
+}
+
 // Initialize SQLite
 const db = new sqlite3.Database("./circuits.db");
 
-// Create circuits table
 db.exec(`
     CREATE TABLE IF NOT EXISTS circuits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,14 +207,10 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_circuits_type ON circuits(type);
     CREATE INDEX IF NOT EXISTS idx_circuits_difficulty ON circuits(difficulty);
 `, (err) => {
-    if (err) {
-        console.error("❌ Database setup error:", err.message);
-    } else {
-        console.log("✅ Database tables and indexes ready.");
-    }
+    if (err) console.error("❌ Database setup error:", err.message);
+    else console.log("✅ Database tables and indexes ready.");
 });
 
-// Create RSS feeds table
 db.exec(`
     CREATE TABLE IF NOT EXISTS rss_feeds (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,11 +224,8 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_rss_feeds_url ON rss_feeds(url);
     CREATE INDEX IF NOT EXISTS idx_rss_feeds_enabled ON rss_feeds(enabled);
 `, (err) => {
-    if (err) {
-        console.error("❌ RSS feeds table error:", err.message);
-    } else {
-        console.log("✅ RSS feeds table ready.");
-    }
+    if (err) console.error("❌ RSS feeds table error:", err.message);
+    else console.log("✅ RSS feeds table ready.");
 });
 
 // ========== DUPLICATE CLEANUP FUNCTIONS ==========
@@ -326,6 +409,7 @@ async function autoExportToJSON() {
 
 // ========== SCRAPER FUNCTIONS WITH PROGRESS TRACKING ==========
 
+// Process Blogger Atom feed entries
 async function processEntryForScraping(item, feedType) {
     try {
         let link = "";
@@ -364,6 +448,7 @@ async function processEntryForScraping(item, feedType) {
         }
         
         const cleanDescription = description ? description.replace(/<[^>]*>/g, '').substring(0, 200) : "";
+        const decodedDescription = decodeHtmlEntities(cleanDescription);
         
         let category = 'circuit';
         const lowerTitle = title.toLowerCase();
@@ -382,7 +467,7 @@ async function processEntryForScraping(item, feedType) {
         }
         
         let effectType = null;
-        const effectTypes = ["Fuzz", "Overdrive", "Distortion", "Delay", "Reverb", "Chorus", "Phaser", "Flanger", "Tremolo", "Vibrato", "Compressor", "Boost", "EQ", "Filter", "Octave", "Wah"];
+        const effectTypes = ["Fuzz", "Overdrive", "Distortion", "Delay", "Reverb", "Chorus", "Phaser", "Flanger", "Tremolo", "Vibrato", "Compressor", "Boost", "EQ", "Filter", "Octave", "Wah", "Sub-octave"];
         for (const type of effectTypes) {
             if (title.toLowerCase().includes(type.toLowerCase())) {
                 effectType = type;
@@ -395,7 +480,12 @@ async function processEntryForScraping(item, feedType) {
             .replace(/layout|vero|stripboard/gi, "")
             .replace(/[\s_:|-]+/g, " ")
             .trim();
+        
+        effectName = decodeHtmlEntities(effectName);
+        
         if (effectName.length < 3) effectName = "Unknown Effect";
+        
+        effectName = effectName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
         
         return {
             url: link,
@@ -406,12 +496,310 @@ async function processEntryForScraping(item, feedType) {
             tags: JSON.stringify([]),
             image_url: imageUrl,
             components: JSON.stringify({}),
-            description: cleanDescription.substring(0, 200),
+            description: decodedDescription,
             verified: verified ? 1 : 0,
             category: category
         };
     } catch (error) {
         console.error(`Error processing entry:`, error.message);
+        return null;
+    }
+}
+
+// Process WordPress RSS feed entries
+async function processRssEntry(item) {
+    try {
+        let link = typeof item.link?.[0] === 'string' ? item.link[0] : "";
+        let title = typeof item.title?.[0] === 'string' ? item.title[0] : "";
+        let description = "";
+        
+        if (item.description?.[0]) {
+            description = typeof item.description[0] === 'string' ? item.description[0] : "";
+        } else if (item.content?.[0]) {
+            description = typeof item.content[0] === 'string' ? item.content[0] : "";
+        } else if (item['content:encoded']?.[0]) {
+            description = typeof item['content:encoded'][0] === 'string' ? item['content:encoded'][0] : "";
+        }
+        
+        let categories = [];
+        if (item.category) {
+            categories = item.category.map(c => typeof c === 'string' ? c : c._ || "");
+        }
+        
+        if (!link || !title) {
+            return null;
+        }
+        
+        let imageUrl = null;
+        if (description) {
+            const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+            if (imgMatch && imgMatch[1]) imageUrl = imgMatch[1];
+        }
+        
+        const cleanDescription = description ? description.replace(/<[^>]*>/g, '').substring(0, 200) : "";
+        const decodedDescription = decodeHtmlEntities(cleanDescription);
+        
+        let category = 'circuit';
+        const lowerTitle = title.toLowerCase();
+        const referencePatterns = [/guide/i, /tutorial/i, /how to/i, /wiring/i, /reference/i];
+        for (const pattern of referencePatterns) {
+            if (pattern.test(lowerTitle)) {
+                category = 'reference';
+                break;
+            }
+        }
+        
+        let verified = false;
+        if (categories.some(cat => cat.toLowerCase().includes('verified')) || 
+            title.toLowerCase().includes('verified')) {
+            verified = true;
+        }
+        
+        let effectType = null;
+        const effectTypes = ["Fuzz", "Overdrive", "Distortion", "Delay", "Reverb", "Chorus", "Phaser", "Flanger", "Tremolo", "Vibrato", "Compressor", "Boost", "EQ", "Filter", "Octave", "Wah", "Sub-octave", "VCA"];
+        for (const type of effectTypes) {
+            if (title.toLowerCase().includes(type.toLowerCase())) {
+                effectType = type;
+                break;
+            }
+        }
+        
+        let effectName = title
+            .replace(/SabroTone|TagboardEffects|StripboardLayouts/gi, "")
+            .replace(/layout|vero|stripboard|build guide|guide|tutorial/i, "")
+            .replace(/[\s_:|-]+/g, " ")
+            .trim();
+        
+        effectName = decodeHtmlEntities(effectName);
+        
+        if (effectName.length < 3) effectName = "Unknown Effect";
+        
+        effectName = effectName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+        
+        return {
+            url: link,
+            effect_name: effectName,
+            type: effectType,
+            parts_count: null,
+            difficulty: "Intermediate",
+            tags: JSON.stringify([]),
+            image_url: imageUrl,
+            components: JSON.stringify({}),
+            description: decodedDescription,
+            verified: verified ? 1 : 0,
+            category: category
+        };
+    } catch (error) {
+        console.error(`    Error processing RSS entry:`, error.message);
+        return null;
+    }
+}
+
+// Fetch all posts from sitemap
+async function scrapeSitemap(baseUrl) {
+    const allUrls = [];
+    let cleanUrl = baseUrl.replace(/\/$/, '');
+    cleanUrl = cleanUrl.replace(/\/feed.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/rss.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/wp-json.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/post-sitemap.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/sitemap.*$/, '');
+    
+    const sitemapPaths = [
+        '/post-sitemap.xml', '/sitemap-post.xml', '/post-sitemap1.xml',
+        '/sitemap.xml', '/sitemap_index.xml'
+    ];
+    
+    let sitemapUrl = null;
+    let sitemapData = null;
+    
+    for (const path of sitemapPaths) {
+        const testUrl = `${cleanUrl}${path}`;
+        console.log(`    Trying sitemap: ${testUrl}`);
+        
+        try {
+            const response = await axios.get(testUrl, {
+                timeout: 15000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "application/xml, text/xml, */*"
+                }
+            });
+            
+            if (response.status === 200) {
+                sitemapUrl = testUrl;
+                sitemapData = response.data;
+                console.log(`    ✅ Found sitemap: ${sitemapUrl}`);
+                break;
+            }
+        } catch (e) {}
+    }
+    
+    if (!sitemapData) {
+        console.log(`    ❌ No sitemap found`);
+        return [];
+    }
+    
+    const { parseStringPromise } = await import('xml2js');
+    const parsed = await parseStringPromise(sitemapData);
+    
+    if (parsed.sitemapindex && parsed.sitemapindex.sitemap) {
+        console.log(`    📑 This is a sitemap index, fetching sub-sitemaps...`);
+        for (const sitemap of parsed.sitemapindex.sitemap) {
+            const loc = sitemap.loc?.[0];
+            if (loc) {
+                console.log(`      Fetching: ${loc}`);
+                try {
+                    const subResponse = await axios.get(loc, {
+                        timeout: 15000,
+                        headers: { "User-Agent": "Mozilla/5.0" }
+                    });
+                    const subParsed = await parseStringPromise(subResponse.data);
+                    if (subParsed.urlset && subParsed.urlset.url) {
+                        for (const url of subParsed.urlset.url) {
+                            const postUrl = url.loc?.[0];
+                            if (postUrl && !postUrl.includes('/tag/') && !postUrl.includes('/category/') && !postUrl.includes('/author/')) {
+                                allUrls.push(postUrl);
+                            }
+                        }
+                        console.log(`        Found ${subParsed.urlset.url.length} URLs in this sitemap`);
+                    }
+                } catch (e) {
+                    console.error(`      Error fetching sub-sitemap: ${e.message}`);
+                }
+            }
+        }
+    }
+    else if (parsed.urlset && parsed.urlset.url) {
+        console.log(`    📄 This is a direct urlset sitemap`);
+        for (const url of parsed.urlset.url) {
+            const loc = url.loc?.[0];
+            if (loc && !loc.includes('/tag/') && !loc.includes('/category/') && !loc.includes('/author/')) {
+                allUrls.push(loc);
+            }
+        }
+    }
+    
+    console.log(`    Found ${allUrls.length} post URLs in sitemap`);
+    return allUrls;
+}
+
+// Scrape a single post page for circuit info
+async function scrapePostPage(url) {
+    try {
+        const response = await axios.get(url, {
+            timeout: 15000,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+        });
+        
+        const html = response.data;
+        
+        let title = "";
+        const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+        if (h1Match) title = h1Match[1];
+        if (!title) {
+            const ogMatch = html.match(/<meta property="og:title" content="([^"]+)"/i);
+            if (ogMatch) title = ogMatch[1];
+        }
+        if (!title) {
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (titleMatch) title = titleMatch[1];
+        }
+        
+        const lowerTitle = title.toLowerCase();
+        const skipPatterns = ['hello world', 'welcome', 'category', 'archive', 'page', 'search', 'error', '404'];
+        let shouldSkip = false;
+        for (const pattern of skipPatterns) {
+            if (lowerTitle.includes(pattern)) {
+                shouldSkip = true;
+                break;
+            }
+        }
+        
+        if (shouldSkip) {
+            console.log(`      ⏭️ Skipping non-circuit page: ${title}`);
+            return null;
+        }
+        
+        let description = "";
+        const descMatch = html.match(/<meta name="description" content="([^"]+)"/i);
+        if (descMatch) description = descMatch[1];
+        if (!description) {
+            const ogDescMatch = html.match(/<meta property="og:description" content="([^"]+)"/i);
+            if (ogDescMatch) description = ogDescMatch[1];
+        }
+        
+        let imageUrl = "";
+        const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
+        if (imgMatch) imageUrl = imgMatch[1];
+        if (!imageUrl) {
+            const featuredMatch = html.match(/<img[^>]+class="[^"]*wp-image-[^"]*"[^>]+src="([^"]+)"/i);
+            if (featuredMatch) imageUrl = featuredMatch[1];
+        }
+        
+        title = title.replace(/<[^>]*>/g, '').trim();
+        title = title.replace(/\s+/g, ' ');
+        
+        let category = 'circuit';
+        const referencePatterns = [/guide/i, /tutorial/i, /how to/i, /wiring/i, /reference/i, /build guide/i];
+        for (const pattern of referencePatterns) {
+            if (pattern.test(title)) {
+                category = 'reference';
+                break;
+            }
+        }
+        
+        let effectType = null;
+        const effectTypes = ["Fuzz", "Overdrive", "Distortion", "Delay", "Reverb", "Chorus", "Phaser", "Flanger", "Tremolo", "Vibrato", "Compressor", "Boost", "EQ", "Filter", "Octave", "Wah", "Sub-octave", "VCA", "Buffer", "Preamp", "Amp", "Limiter"];
+        for (const type of effectTypes) {
+            if (title.toLowerCase().includes(type.toLowerCase())) {
+                effectType = type;
+                break;
+            }
+        }
+        
+        let effectName = title
+            .replace(/SabroTone/gi, "")
+            .replace(/Layout/gi, "")
+            .replace(/Vero/gi, "")
+            .replace(/Stripboard/gi, "")
+            .replace(/Build Guide/gi, "")
+            .replace(/Guide/gi, "")
+            .replace(/[\s_:|-]+/g, " ")
+            .trim();
+        
+        effectName = decodeHtmlEntities(effectName);
+        
+        if (effectName.length < 2) effectName = "Unknown Effect";
+        
+        effectName = effectName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+        
+        const hasCircuitKeywords = /fuzz|overdrive|distortion|delay|reverb|chorus|phaser|flanger|tremolo|compressor|boost|octave|wah|filter|preamp|buffer|amplifier|amp/i.test(title);
+        
+        if (!hasCircuitKeywords && category !== 'reference') {
+            console.log(`      ⏭️ Skipping non-circuit page (no keywords): ${title}`);
+            return null;
+        }
+        
+        const decodedDescription = decodeHtmlEntities(description.substring(0, 200));
+        
+        return {
+            url: url,
+            effect_name: effectName,
+            type: effectType,
+            parts_count: null,
+            difficulty: "Intermediate",
+            tags: JSON.stringify([]),
+            image_url: imageUrl,
+            components: JSON.stringify({}),
+            description: decodedDescription,
+            verified: 0,
+            category: category
+        };
+    } catch (error) {
+        console.error(`      Error scraping ${url}: ${error.message}`);
         return null;
     }
 }
@@ -474,19 +862,19 @@ async function scrapeSingleFeedWithProgress(feed) {
                     return { added, skipped, cancelled: true };
                 }
                 
-                let link = "";
+                let extracted;
                 if (feedType === 'atom') {
-                    link = item.link?.find(l => l.$.rel === 'alternate')?.$?.href || item.link?.[0]?.$?.href || "";
+                    extracted = await processEntryForScraping(item, feedType);
                 } else {
-                    link = item.link?.[0] || "";
+                    extracted = await processRssEntry(item);
                 }
                 
-                if (!link) continue;
+                if (!extracted) continue;
                 
                 scraperStatus.itemsProcessed++;
                 
                 const exists = await new Promise((resolve) => {
-                    db.get("SELECT id FROM circuits WHERE url = ?", [link], (err, row) => {
+                    db.get("SELECT id FROM circuits WHERE url = ?", [extracted.url], (err, row) => {
                         resolve(!err && row);
                     });
                 });
@@ -495,9 +883,6 @@ async function scrapeSingleFeedWithProgress(feed) {
                     skipped++;
                     continue;
                 }
-                
-                const extracted = await processEntryForScraping(item, feedType);
-                if (!extracted) continue;
                 
                 await new Promise((resolve) => {
                     db.run(`INSERT INTO circuits 
@@ -533,18 +918,24 @@ async function scrapeSingleFeedWithProgress(feed) {
         }
     }
     
+    await new Promise((resolve) => {
+        db.run("UPDATE rss_feeds SET last_scraped = CURRENT_TIMESTAMP WHERE id = ?", [feed.id], (err) => {
+            if (err) console.error(`    Failed to update last_scraped: ${err.message}`);
+            else console.log(`    📅 Updated last_scraped timestamp for ${feed.name}`);
+            resolve();
+        });
+    });
+    
     console.log(`  📊 Feed "${feed.name}" complete: +${added} new, ${skipped} duplicates`);
     return { added, skipped, cancelled: false };
 }
 
 // ========== API ROUTES ==========
-// IMPORTANT: All API routes must come BEFORE express.static
 
 app.get("/api/scrape/status", (req, res) => {
     res.json(scraperStatus);
 });
 
-// Cancel running scraper
 app.post("/api/scrape/cancel", (req, res) => {
     console.log("Cancel endpoint hit. Running:", scraperStatus.running);
     
@@ -558,9 +949,40 @@ app.post("/api/scrape/cancel", (req, res) => {
     res.json({ message: "Scraper cancellation requested", status: "cancelling" });
 });
 
-// Test endpoint to verify API is working
-app.get("/api/ping", (req, res) => {
-    res.json({ status: "ok", timestamp: Date.now() });
+app.post("/api/debug/feed", async (req, res) => {
+    const { url, label } = req.body;
+    if (!url) return res.status(400).json({ error: "URL required" });
+    
+    const rssUrl = getRssUrl(url, label);
+    const altRssUrl = getAltRssUrl(url, label);
+    
+    const results = {
+        original: url,
+        label: label || null,
+        atomFeed: rssUrl,
+        rssFeed: altRssUrl,
+        atomWorking: false,
+        rssWorking: false
+    };
+    
+    try {
+        const atomTest = await axios.get(rssUrl, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
+        results.atomWorking = atomTest.status === 200;
+        results.atomStatus = atomTest.status;
+    } catch (e) {
+        results.atomError = e.message;
+    }
+    
+    try {
+        const rssTest = await axios.get(altRssUrl, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
+        results.rssWorking = rssTest.status === 200;
+        results.rssStatus = rssTest.status;
+    } catch (e) {
+        results.rssError = e.message;
+    }
+    
+    console.log("Debug results:", results);
+    res.json(results);
 });
 
 app.get("/api/circuits", (req, res) => {
@@ -642,9 +1064,12 @@ app.get("/api/filters", (req, res) => {
     db.all("SELECT DISTINCT type FROM circuits WHERE type IS NOT NULL AND type != ''", (err, types) => {
         db.all("SELECT DISTINCT difficulty FROM circuits WHERE difficulty IS NOT NULL AND difficulty != ''", (err, difficulties) => {
             db.all("SELECT DISTINCT category FROM circuits WHERE category IS NOT NULL", (err, categories) => {
+                const difficultyOrder = { 'Beginner': 1, 'Intermediate': 2, 'Advanced': 3, 'Expert': 4 };
+                const sortedDifficulties = (difficulties.map(d => d.difficulty).filter(d => d)).sort((a, b) => (difficultyOrder[a] || 99) - (difficultyOrder[b] || 99));
+                
                 res.json({
                     types: types.map(t => t.type).filter(t => t),
-                    difficulties: difficulties.map(d => d.difficulty).filter(d => d),
+                    difficulties: sortedDifficulties,
                     categories: categories.map(c => c.category).filter(c => c)
                 });
             });
@@ -685,16 +1110,184 @@ app.patch("/api/feeds/:id/toggle", (req, res) => {
 });
 
 app.post("/api/feeds", async (req, res) => {
-    const { url, name } = req.body;
+    const { url, name, label } = req.body;
     
     if (!url) {
         return res.status(400).json({ error: "URL is required" });
     }
     
-    const rssUrl = getRssUrl(url);
-    const feedName = name || url.replace(/https?:\/\//, '').replace(/\.blogspot\.com.*$/, '');
+    let baseUrl = url.replace(/\/search\/label\/.*$/, '').replace(/\/feeds\/posts\/default\/-\/.*$/, '');
+    baseUrl = baseUrl.replace(/\/feed.*$/, '').replace(/\/rss.*$/, '').replace(/\/atom.*$/, '');
+    baseUrl = baseUrl.replace(/\/post-sitemap.*$/, '').replace(/\/sitemap.*$/, '');
     
-    db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [rssUrl, feedName, url], async function(err) {
+    let feedUrl;
+    let feedName;
+    
+    if (baseUrl.includes('blogspot.com')) {
+        if (label && label.trim() !== '') {
+            feedUrl = getRssUrl(baseUrl, label);
+            feedName = name || `${baseUrl.replace(/https?:\/\//, '').replace(/\.blogspot\.com.*$/, '')} - ${label}`;
+            console.log(`Adding Blogger feed with label: ${label}`);
+        } else {
+            feedUrl = getRssUrl(baseUrl);
+            feedName = name || baseUrl.replace(/https?:\/\//, '').replace(/\.blogspot\.com.*$/, '');
+        }
+        
+        const isValid = await isFeedUrlValid(feedUrl);
+        if (!isValid) {
+            return res.status(400).json({ error: "Could not find a working RSS feed for this Blogger blog." });
+        }
+        
+        db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [feedUrl, feedName, baseUrl], async function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE')) {
+                    return res.status(400).json({ error: "This feed already exists" });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+            
+            const newFeedId = this.lastID;
+            res.json({ id: newFeedId, url: feedUrl, name: feedName, blog_url: baseUrl, label: label || null, scraping: true });
+            
+            console.log(`🔄 Auto-scraping new Blogger feed: ${feedName}`);
+            
+            scraperStatus = {
+                running: true,
+                currentFeed: feedName,
+                currentPage: 0,
+                itemsProcessed: 0,
+                itemsAdded: 0,
+                itemsSkipped: 0,
+                startTime: Date.now(),
+                feedsCompleted: 0,
+                totalFeeds: 1,
+                error: null
+            };
+            
+            try {
+                const feed = { id: newFeedId, url: feedUrl, name: feedName };
+                const result = await scrapeSingleFeedWithProgress(feed);
+                console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
+                
+                await cleanupAllDuplicates();
+                await autoExportToJSON();
+                
+                scraperStatus.running = false;
+                scraperStatus.itemsAdded = result.added;
+                scraperStatus.itemsSkipped = result.skipped;
+                
+            } catch (scrapeErr) {
+                console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
+                scraperStatus.running = false;
+                scraperStatus.error = scrapeErr.message;
+            }
+        });
+        return;
+    }
+    
+    console.log(`🔍 Attempting to scrape sitemap for ${baseUrl}`);
+    const sitemapUrls = await scrapeSitemap(baseUrl);
+    
+    if (sitemapUrls.length > 0) {
+        console.log(`📡 Found ${sitemapUrls.length} posts in sitemap, scraping each...`);
+        
+        feedName = name || baseUrl.replace(/https?:\/\//, '').replace(/www\./, '');
+        feedUrl = `${baseUrl}/sitemap`;
+        
+        db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [feedUrl, feedName, baseUrl], async function(err) {
+            if (err && !err.message.includes('UNIQUE')) {
+                console.error("Error saving feed:", err.message);
+            }
+        });
+        
+        scraperStatus = {
+            running: true,
+            currentFeed: feedName,
+            currentPage: 0,
+            itemsProcessed: 0,
+            itemsAdded: 0,
+            itemsSkipped: 0,
+            startTime: Date.now(),
+            feedsCompleted: 0,
+            totalFeeds: 1,
+            error: null
+        };
+        
+        res.json({ message: "Sitemap found, processing posts...", total: sitemapUrls.length, scraping: true });
+        
+        let added = 0;
+        let skipped = 0;
+        
+        for (let i = 0; i < sitemapUrls.length; i++) {
+            const postUrl = sitemapUrls[i];
+            scraperStatus.itemsProcessed = i + 1;
+            
+            if (i % 20 === 0) {
+                console.log(`    Processing URL ${i + 1}/${sitemapUrls.length}...`);
+            }
+            
+            const exists = await new Promise((resolve) => {
+                db.get("SELECT id FROM circuits WHERE url = ?", [postUrl], (err, row) => {
+                    resolve(!err && row);
+                });
+            });
+            
+            if (exists) {
+                skipped++;
+                scraperStatus.itemsSkipped = skipped;
+                continue;
+            }
+            
+            const extracted = await scrapePostPage(postUrl);
+            if (!extracted) {
+                console.log(`      ⏭️ No circuit data found for: ${postUrl.substring(0, 60)}...`);
+                continue;
+            }
+            
+            await new Promise((resolve) => {
+                db.run(`INSERT INTO circuits 
+                    (url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [extracted.url, extracted.effect_name, extracted.type, extracted.parts_count,
+                     extracted.difficulty, extracted.tags, extracted.image_url, extracted.components,
+                     extracted.description, extracted.verified, extracted.category],
+                    (err) => { 
+                        if (err) console.error(`      Insert error: ${err.message}`);
+                        resolve(); 
+                    });
+            });
+            
+            added++;
+            scraperStatus.itemsAdded = added;
+            
+            if (added % 10 === 0) {
+                console.log(`    Progress: ${added} added, ${skipped} skipped (${i + 1}/${sitemapUrls.length})`);
+            }
+        }
+        
+        console.log(`✅ Sitemap scrape complete: Added ${added} new circuits, Skipped ${skipped} duplicates`);
+        
+        await cleanupAllDuplicates();
+        await autoExportToJSON();
+        
+        await new Promise((resolve) => {
+            db.run("UPDATE rss_feeds SET last_scraped = CURRENT_TIMESTAMP WHERE blog_url = ?", [baseUrl], () => resolve());
+        });
+        
+        scraperStatus.running = false;
+        
+        return;
+    }
+    
+    console.log(`No sitemap found, trying RSS feed for ${baseUrl}`);
+    feedUrl = await findValidFeedUrl(baseUrl);
+    if (!feedUrl) {
+        return res.status(400).json({ error: "Could not find a working RSS feed or sitemap for this URL." });
+    }
+    
+    feedName = name || baseUrl.replace(/https?:\/\//, '').replace(/www\./, '');
+    
+    db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [feedUrl, feedName, baseUrl], async function(err) {
         if (err) {
             if (err.message.includes('UNIQUE')) {
                 return res.status(400).json({ error: "This feed already exists" });
@@ -703,23 +1296,48 @@ app.post("/api/feeds", async (req, res) => {
         }
         
         const newFeedId = this.lastID;
+        res.json({ id: newFeedId, url: feedUrl, name: feedName, blog_url: baseUrl, scraping: true });
         
-        // Send response immediately
-        res.json({ id: newFeedId, url: rssUrl, name: feedName, blog_url: url, scraping: true });
+        console.log(`🔄 Auto-scraping new RSS feed: ${feedName}`);
         
-        // Scrape the feed in the background
-        console.log(`🔄 Auto-scraping new feed: ${feedName}`);
+        scraperStatus = {
+            running: true,
+            currentFeed: feedName,
+            currentPage: 0,
+            itemsProcessed: 0,
+            itemsAdded: 0,
+            itemsSkipped: 0,
+            startTime: Date.now(),
+            feedsCompleted: 0,
+            totalFeeds: 1,
+            error: null
+        };
         
         try {
-            const feed = { id: newFeedId, url: rssUrl, name: feedName };
+            const feed = { id: newFeedId, url: feedUrl, name: feedName };
             const result = await scrapeSingleFeedWithProgress(feed);
             console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
             
             await cleanupAllDuplicates();
             await autoExportToJSON();
+            
+            scraperStatus.running = false;
+            scraperStatus.itemsAdded = result.added;
+            scraperStatus.itemsSkipped = result.skipped;
+            
         } catch (scrapeErr) {
             console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
+            scraperStatus.running = false;
+            scraperStatus.error = scrapeErr.message;
         }
+    });
+});
+
+app.get("/api/circuits/:id", (req, res) => {
+    db.get("SELECT * FROM circuits WHERE id = ?", [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: "Not found" });
+        res.json(row);
     });
 });
 
@@ -767,16 +1385,14 @@ app.delete("/api/circuits/:id", async (req, res) => {
     });
 });
 
-// MANUAL SCRAPE with cancel support
 app.post("/api/scrape", async (req, res) => {
     if (scraperStatus.running) {
         return res.status(409).json({ error: "Scraper is already running" });
     }
     
-    // Reset cancellation flag
+    const maxAgeHours = req.body.maxAgeHours || 24;
     cancelRequested = false;
     
-    // Reset status
     scraperStatus = {
         running: true,
         currentFeed: '',
@@ -790,22 +1406,48 @@ app.post("/api/scrape", async (req, res) => {
         error: null
     };
     
-    // Send immediate response
-    res.json({ message: "Scraping started", status: "running" });
+    res.json({ message: "Scraping started", status: "running", maxAgeHours });
     
-    // Get all enabled feeds
     const feeds = await new Promise((resolve) => {
-        db.all("SELECT id, name, url FROM rss_feeds WHERE enabled = 1", (err, rows) => {
+        db.all(`
+            SELECT id, name, url, last_scraped 
+            FROM rss_feeds 
+            WHERE enabled = 1 
+            AND (
+                last_scraped IS NULL 
+                OR julianday('now') - julianday(last_scraped) > ${maxAgeHours / 24.0}
+            )
+        `, (err, rows) => {
+            resolve(err ? [] : rows);
+        });
+    });
+    
+    const skippedFeeds = await new Promise((resolve) => {
+        db.all(`
+            SELECT id, name, last_scraped 
+            FROM rss_feeds 
+            WHERE enabled = 1 
+            AND last_scraped IS NOT NULL 
+            AND julianday('now') - julianday(last_scraped) <= ${maxAgeHours / 24.0}
+        `, (err, rows) => {
             resolve(err ? [] : rows);
         });
     });
     
     scraperStatus.totalFeeds = feeds.length;
-    console.log(`\n🕷️ Starting manual scrape of ${feeds.length} feed(s)...`);
+    
+    if (skippedFeeds.length > 0) {
+        console.log(`\n⏭️ Skipping ${skippedFeeds.length} feed(s) scraped within the last ${maxAgeHours} hours:`);
+        skippedFeeds.forEach(feed => {
+            const lastScraped = new Date(feed.last_scraped).toLocaleString();
+            console.log(`   - ${feed.name} (last scraped: ${lastScraped})`);
+        });
+    }
+    
+    console.log(`\n🕷️ Starting manual scrape of ${feeds.length} feed(s) (older than ${maxAgeHours} hours)...`);
     
     try {
         for (let i = 0; i < feeds.length; i++) {
-            // Check for cancellation
             if (cancelRequested) {
                 console.log(`\n🛑 Scraper cancelled by user after ${scraperStatus.feedsCompleted} feeds`);
                 scraperStatus.error = "Cancelled by user";
@@ -838,7 +1480,7 @@ app.post("/api/scrape", async (req, res) => {
         console.log(`\n✅ Manual scrape ${cancelRequested ? 'cancelled' : 'complete'}!`);
         console.log(`   Added: ${scraperStatus.itemsAdded} circuits`);
         console.log(`   Skipped: ${scraperStatus.itemsSkipped} duplicates`);
-        console.log(`   Total processed: ${scraperStatus.itemsProcessed} items`);
+        console.log(`   Processed ${scraperStatus.feedsCompleted} of ${feeds.length} feeds`);
         console.log(`   Time: ${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s`);
         
         scraperStatus.running = false;
@@ -856,54 +1498,16 @@ app.post("/api/cleanup", async (req, res) => {
     res.json({ message: "Cleanup complete", ...result });
 });
 
-// Static files - THIS MUST COME AFTER ALL API ROUTES
 app.use(express.static("."));
 
 app.get("/admin", (req, res) => { res.sendFile(process.cwd() + "/admin.html"); });
 
-// Initial export and cleanup on startup
 db.get("SELECT COUNT(*) as count FROM circuits", async (err, row) => {
     if (!err && row?.count > 0) {
         console.log("📊 Running initial cleanup on startup...");
         await cleanupAllDuplicates();
         await autoExportToJSON();
     }
-});
-
-// Debug endpoint to test feed URLs
-app.post("/api/debug/feed", async (req, res) => {
-    const { url } = req.body;
-    if (!url) return res.status(400).json({ error: "URL required" });
-    
-    const rssUrl = getRssUrl(url);
-    const altRssUrl = getAltRssUrl(url);
-    
-    const results = {
-        original: url,
-        atomFeed: rssUrl,
-        rssFeed: altRssUrl,
-        atomWorking: false,
-        rssWorking: false
-    };
-    
-    try {
-        const atomTest = await axios.get(rssUrl, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
-        results.atomWorking = atomTest.status === 200;
-        results.atomStatus = atomTest.status;
-    } catch (e) {
-        results.atomError = e.message;
-    }
-    
-    try {
-        const rssTest = await axios.get(altRssUrl, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
-        results.rssWorking = rssTest.status === 200;
-        results.rssStatus = rssTest.status;
-    } catch (e) {
-        results.rssError = e.message;
-    }
-    
-    console.log("Debug results:", results);
-    res.json(results);
 });
 
 app.listen(PORT, () => {
@@ -916,5 +1520,9 @@ app.listen(PORT, () => {
     console.log(`   • Automatic duplicate detection & cleanup`);
     console.log(`   • Database + JSON deduplication`);
     console.log(`   • Real-time scraper progress tracking`);
-    console.log(`   • Cancel button to stop long-running scrapes\n`);
+    console.log(`   • Cancel button to stop long-running scrapes`);
+    console.log(`   • Label support for Blogger feeds`);
+    console.log(`   • WordPress RSS feed support`);
+    console.log(`   • Sitemap support for WordPress sites`);
+    console.log(`   • HTML entity decoding for titles and descriptions\n`);
 });

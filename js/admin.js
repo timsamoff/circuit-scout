@@ -349,6 +349,7 @@ async function loadFeeds() {
 async function addFeed() {
     const url = document.getElementById('feed-url').value.trim();
     const name = document.getElementById('feed-name').value.trim();
+    const label = document.getElementById('feed-label')?.value.trim() || null;
     if (!url) return showAlert('Please enter a URL', 'Error');
     
     const button = document.getElementById('add-feed-btn');
@@ -359,12 +360,13 @@ async function addFeed() {
     try {
         const res = await fetch(`${API_BASE}/feeds`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, name })
+            body: JSON.stringify({ url, name, label })
         });
         const result = await res.json();
         if (res.ok) {
             document.getElementById('feed-url').value = '';
             document.getElementById('feed-name').value = '';
+            if (document.getElementById('feed-label')) document.getElementById('feed-label').value = '';
             await loadFeeds();
             button.innerHTML = '<i class="fas fa-check"></i> Added!';
             
@@ -373,7 +375,7 @@ async function addFeed() {
             const statusText = document.getElementById('scraper-status-text');
             if (statusBar) {
                 statusBar.style.display = 'flex';
-                if (statusText) statusText.innerHTML = 'Starting scrape for new feed...';
+                if (statusText) statusText.innerHTML = label ? `Starting scrape for "${label}" feed...` : 'Starting scrape for new feed...';
             }
             
             // Start polling for status

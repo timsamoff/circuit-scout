@@ -121,11 +121,12 @@
                     </div>
                     <div class="card-content">
                         <form id="add-feed-form" class="form-inline">
-                            <input type="url" id="feed-url" placeholder="https://tagboardeffects.blogspot.com" required>
+                            <input type="url" id="feed-url" placeholder="https://vero-p2p.blogspot.com" required>
+                            <input type="text" id="feed-label" placeholder="Label (optional, e.g., POINT TO POINT)">
                             <input type="text" id="feed-name" placeholder="Name (optional)">
                             <button type="submit" id="add-feed-btn" class="btn-primary"><i class="fas fa-plus"></i> Add Feed</button>
                         </form>
-                        <p class="form-hint"><i class="fas fa-info-circle"></i> Enter the main blog URL. The RSS feed will be auto-detected.</p>
+                        <p class="form-hint"><i class="fas fa-info-circle"></i> Enter the main blog URL. Add a label to only scrape posts with that label. Leave label empty to scrape all posts.</p>
                         <div id="feeds-list" class="feeds-list">
                             <div class="loading">Loading feeds...</div>
                         </div>

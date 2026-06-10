@@ -6,7 +6,7 @@ import fs from 'fs';
 const EFFECT_TYPES = [
     "Fuzz", "Overdrive", "Distortion", "Delay", "Reverb", "Chorus", "Phaser",
     "Flanger", "Tremolo", "Vibrato", "Compressor", "Boost", "EQ", "Filter",
-    "Octave", "Pitch", "Synth", "Wah", "Volume", "Looper", "Noise Gate"
+    "Octave", "Pitch", "Synth", "Wah", "Volume", "Looper", "Noise Gate", "Sub-octave", "VCA"
 ];
 
 const DIFFICULTY_MAP = {
@@ -66,7 +66,7 @@ function extractEffectName(title, url) {
     }
     
     let clean = titleStr
-        .replace(/TagboardEffects|DirtboxLayouts|EffectsLayouts|Guitar FX|Guitar Effects/gi, "")
+        .replace(/TagboardEffects|DirtboxLayouts|EffectsLayouts|Guitar FX|Guitar Effects|SabroTone/gi, "")
         .replace(/layout|vero|stripboard|build guide|guide|tutorial/i, "")
         .replace(/[\s_:|-]+/g, " ")
         .trim();
@@ -121,6 +121,7 @@ function detectCategory(title, content) {
     return 'circuit';
 }
 
+// Process Blogger Atom feed entries
 async function processAtomEntry(entry) {
     try {
         const link = entry.link?.find(l => l.$.rel === 'alternate')?.$?.href || entry.link?.[0]?.$?.href || "";
@@ -197,7 +198,65 @@ async function processAtomEntry(entry) {
     }
 }
 
-// Robust pagination - continues until no more items are returned
+// Process WordPress RSS feed entries
+async function processRssEntry(item) {
+    try {
+        let link = typeof item.link?.[0] === 'string' ? item.link[0] : "";
+        let title = typeof item.title?.[0] === 'string' ? item.title[0] : "";
+        let description = "";
+        
+        if (item.description?.[0]) {
+            description = typeof item.description[0] === 'string' ? item.description[0] : "";
+        } else if (item.content?.[0]) {
+            description = typeof item.content[0] === 'string' ? item.content[0] : "";
+        } else if (item['content:encoded']?.[0]) {
+            description = typeof item['content:encoded'][0] === 'string' ? item['content:encoded'][0] : "";
+        }
+        
+        let categories = [];
+        if (item.category) {
+            categories = item.category.map(c => typeof c === 'string' ? c : c._ || "");
+        }
+        
+        if (!link || !title) return null;
+        
+        const imageUrl = extractFirstImage(description);
+        const cleanDescription = truncateDescription(description, 200);
+        const category = detectCategory(title, description);
+        
+        let verified = false;
+        if (categories.some(cat => cat.toLowerCase().includes('verified')) || 
+            title.toLowerCase().includes('verified')) {
+            verified = true;
+        }
+        
+        const effectType = detectEffectType(title + " " + categories.join(" "));
+        const difficulty = detectDifficulty(description + " " + title);
+        const partsCount = extractPartsCount(description);
+        const tags = extractTags(title + " " + categories.join(" "), effectType);
+        const effectName = extractEffectName(title, link);
+        
+        console.log(`  📄 ${effectName} | Type: ${effectType || 'unknown'} | Verified: ${verified}`);
+        
+        return {
+            url: link,
+            effect_name: effectName,
+            type: effectType,
+            parts_count: partsCount,
+            difficulty: difficulty,
+            tags: JSON.stringify(tags),
+            image_url: imageUrl,
+            components: JSON.stringify({}),
+            description: cleanDescription,
+            verified: verified ? 1 : 0,
+            category: category
+        };
+    } catch (error) {
+        console.error(`  ❌ Error processing RSS entry:`, error.message);
+        return null;
+    }
+}
+
 async function fetchAllPages(baseFeedUrl, pageSize = 25) {
     console.log(`  Fetching feed: ${baseFeedUrl}`);
     
@@ -217,7 +276,7 @@ async function fetchAllPages(baseFeedUrl, pageSize = 25) {
         }
         
         try {
-            const response = await axios.get(pageUrl, { 
+            const response = await axios.get(pageUrl, {
                 timeout: 30000,
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -227,7 +286,6 @@ async function fetchAllPages(baseFeedUrl, pageSize = 25) {
             
             const parsed = await parseStringPromise(response.data);
             
-            // Detect feed type on first page
             if (page === 1) {
                 if (parsed.feed?.entry) {
                     feedType = 'atom';
@@ -237,7 +295,6 @@ async function fetchAllPages(baseFeedUrl, pageSize = 25) {
                 console.log(`    Detected: ${feedType.toUpperCase()} format`);
             }
             
-            // Extract items based on feed type
             let items = [];
             if (feedType === 'atom') {
                 items = parsed.feed?.entry || [];
@@ -254,15 +311,12 @@ async function fetchAllPages(baseFeedUrl, pageSize = 25) {
             allItems = [...allItems, ...items];
             console.log(`    Got ${items.length} items (total so far: ${allItems.length})`);
             
-            // Stop if we got fewer items than requested (last page)
             if (items.length < pageSize) {
                 console.log(`    Reached last page (got ${items.length} < ${pageSize})`);
                 hasMore = false;
             }
             
             page++;
-            
-            // Be kind to the server - delay between requests
             await new Promise(resolve => setTimeout(resolve, 1000));
             
         } catch (error) {
@@ -317,7 +371,7 @@ async function autoExportToJSON(db) {
 }
 
 async function scrapeAllFeeds() {
-    console.log("🕷️ Starting paginated scraper (robust mode)...");
+    console.log("🕷️ Starting paginated scraper...");
     
     const db = new sqlite3.Database('./circuits.db');
     
@@ -369,7 +423,13 @@ async function scrapeAllFeeds() {
                     continue;
                 }
                 
-                const extracted = await processAtomEntry(item);
+                let extracted;
+                if (feedType === 'atom') {
+                    extracted = await processAtomEntry(item);
+                } else {
+                    extracted = await processRssEntry(item);
+                }
+                
                 if (!extracted) continue;
                 
                 await new Promise((resolve) => {
@@ -390,6 +450,7 @@ async function scrapeAllFeeds() {
             totalSkipped += skippedFromFeed;
             console.log(`   📊 Feed summary: +${addedFromFeed} new, ${skippedFromFeed} duplicates`);
             
+            // Update last_scraped timestamp
             await new Promise((resolve) => {
                 db.run("UPDATE rss_feeds SET last_scraped = CURRENT_TIMESTAMP WHERE id = ?", [feed.id], () => resolve());
             });
@@ -419,7 +480,7 @@ export async function scrapeSingleFeed(db, autoExportToJSON, feedId) {
     return await scrapeAllFeeds();
 }
 
-// Run directly if called from command line - FIXED FOR WINDOWS
+// Run directly if called from command line
 const isRunningDirectly = process.argv[1] && (
     process.argv[1].includes('scraper.js') || 
     process.argv[1].endsWith('scraper.js')

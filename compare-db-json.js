@@ -1,5 +1,5 @@
-const sqlite3 = require('sqlite3');
-const fs = require('fs');
+import sqlite3 from 'sqlite3';
+import fs from 'fs';
 
 const db = new sqlite3.Database('./circuits.db');
 
@@ -19,7 +19,7 @@ db.get("SELECT COUNT(*) as count FROM circuits", (err, dbRow) => {
         if (dbRow.count === circuits.length) {
             console.log('✅ Counts match! JSON is up to date.');
         } else {
-            console.log(`⚠️ Counts don't match! Difference: ${dbRow.count - circuits.length}`);
+            console.log(`⚠️ Counts don\'t match! Difference: ${dbRow.count - circuits.length}`);
             console.log('   Run the scraper to update JSON.');
         }
         
