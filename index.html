@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Find the perfect DIY guitar pedal circuit with intelligent filtering">
+    <meta name="theme-color" content="#0f2b3d">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-icon-192x192.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="msapplication-TileColor" content="#0f2b3d">
+    <meta name="msapplication-TileImage" content="/favicon/ms-icon-144x144.png">
+    
+    <title>Circuit Scout | DIY Guitar Pedal Database</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="dark-mode">
+    <div class="app-container">
+        <header class="hero">
+            <div class="hero-content">
+                <div class="hero-top">
+                    <h1 class="hero-title">
+                        <i class="fas fa-microchip"></i>
+                        Circuit Scout
+                    </h1>
+                    <div class="header-actions">
+                        <a href="mailto:circuitousfx@gmail.com" class="contact-btn" aria-label="Contact">
+                            <i class="fas fa-envelope"></i>
+                        </a>
+                        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark/light mode"><i class="fas fa-sun"></i> Light Mode</button>
+                    </div>
+                </div>
+                <p class="hero-subtitle"><i class="fas fa-database"></i> Effects pedal layouts sourced from the DIY community. Created by <a href="https://instagram.com/circuitous.fx" class="credit-link" target="_blank" rel="noopener noreferrer">Circuitous FX</a>.</p>
+                <p class="hero-stats" id="stats">Loading database...</p>
+            </div>
+        </header>
+
+        <main class="main-grid">
+            <aside class="filters-panel" aria-label="Search filters">
+                <div class="filter-group">
+                    <label for="search-input" class="filter-label"><i class="fas fa-search"></i> Search</label>
+                    <input type="text" id="search-input" class="filter-input" placeholder="Circuit name, tag, or keyword...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="type-select" class="filter-label"><i class="fas fa-sliders-h"></i> Effect Type</label>
+                    <select id="type-select" class="filter-select">
+                        <option value="">All types</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="difficulty-select" class="filter-label"><i class="fas fa-chart-line"></i> Difficulty</label>
+                    <select id="difficulty-select" class="filter-select">
+                        <option value="">Any level</option>
+                    </select>
+                </div>
+
+                <!-- CONTENT TYPE -->
+                <div class="filter-group">
+                    <label class="filter-label"><i class="fas fa-folder"></i> Content Type</label>
+                    <div class="button-group">
+                        <button id="category-all-btn" class="filter-btn active">All</button>
+                        <button id="category-circuit-btn" class="filter-btn">Circuits Only</button>
+                        <button id="category-reference-btn" class="filter-btn">Reference Only</button>
+                    </div>
+                </div>
+
+                <!-- BOARD TYPE -->
+                <!-- <div class="filter-group">
+                    <label class="filter-label"><i class="fas fa-microchip"></i> Board Type</label>
+                    <div class="button-group">
+                        <button id="board-all-btn" class="filter-btn active">All</button>
+                        <button id="board-stripboard-btn" class="filter-btn">Stripboard</button>
+                        <button id="board-tagboard-btn" class="filter-btn">Tagboard</button>
+                        <button id="board-pcb-btn" class="filter-btn">PCB</button>
+                        <button id="board-perfboard-btn" class="filter-btn">Perfboard</button>
+                    </div>
+                </div> -->
+
+                <!-- VERIFICATION STATUS -->
+                <div class="filter-group">
+                    <label class="filter-label"><i class="fas fa-check-circle"></i> Verification Status</label>
+                    <div class="button-group">
+                        <button id="verified-all-btn" class="filter-btn active">All</button>
+                        <button id="verified-only-btn" class="filter-btn">Verified</button>
+                        <button id="unverified-only-btn" class="filter-btn">Unverified</button>
+                    </div>
+                </div>
+
+                <button id="fav-filter-btn" class="btn-secondary"><i class="far fa-star"></i> Favorites OFF</button>
+                <button id="reset-filters" class="btn-secondary"><i class="fas fa-undo-alt"></i> Reset all filters</button>
+            </aside>
+
+            <section class="results-area" aria-label="Search results">
+                <div class="results-header">
+                    <h2 class="results-title"><i class="fas fa-microchip"></i> Circuits</h2>
+                    <span id="result-count" class="results-count">0 found</span>
+                </div>
+                <div id="results-grid" class="results-grid">
+                    <div class="loading-state"><i class="fas fa-spinner fa-pulse"></i> Loading circuits...</div>
+                </div>
+                <div id="loading-trigger" class="loading-trigger" style="display: none;">
+                    <div class="loading-spinner"><i class="fas fa-spinner fa-pulse"></i> Loading more...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

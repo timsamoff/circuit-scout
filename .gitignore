@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Database (local only - DO NOT COMMIT)
+circuits.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Note: data/circuits.json is NOT ignored - it needs to be committed for GitHub Pages

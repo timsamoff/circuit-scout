@@ -1,0 +1,28 @@
+{
+  "name": "circuit-scout",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "DIY guitar pedal circuit database and search tool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --ignore 'circuits.db' --ignore 'data/' --ignore 'circuits.db-journal' server.js",
+    "scrape": "node scraper.js",
+    "export": "node force-export.js"
+  },
+  "keywords": ["guitar", "pedal", "diy", "circuit", "search"],
+  "author": "Tim Samoff",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
