@@ -199,12 +199,10 @@ body {
 
 .theme-toggle:hover { background: var(--theme-toggle-hover-bg); border-color: var(--accent-cyan); }
 
-.main-grid { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
-
-@media (max-width: 768px) { 
-    .main-grid { grid-template-columns: 1fr; } 
-    .app-container { padding: 1rem; } 
-    .hero { padding: 1.5rem; } 
+.main-grid { 
+    display: grid; 
+    grid-template-columns: 300px 1fr; 
+    gap: 1.5rem; 
 }
 
 .filters-panel {
@@ -213,9 +211,50 @@ body {
     border-radius: var(--radius-lg);
     padding: 1.5rem;
     border: 1px solid var(--border-glow);
-    position: sticky;
-    top: 1rem;
     height: fit-content;
+}
+
+/* Desktop: sticky sidebar */
+@media (min-width: 769px) {
+    .filters-panel {
+        position: sticky;
+        top: 1rem;
+    }
+}
+
+/* Mobile: normal flow */
+@media (max-width: 768px) {
+    .main-grid { 
+        grid-template-columns: 1fr; 
+        gap: 1rem;
+    } 
+    .app-container { 
+        padding: 1rem; 
+    } 
+    .hero { 
+        padding: 1.5rem; 
+    }
+    
+    .filters-panel {
+        position: relative;
+        top: auto;
+        margin-bottom: 1.5rem;
+    }
+    
+    .results-header {
+        margin-top: 0;
+        padding-top: 0;
+    }
+    
+    .results-area {
+        clear: both;
+        width: 100%;
+    }
+    
+    .filters-panel {
+        width: 100%;
+        clear: both;
+    }
 }
 
 .filter-group { margin-bottom: 1.5rem; }
@@ -284,7 +323,16 @@ body {
 
 .results-area { min-height: 60vh; }
 
-.results-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+.results-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: baseline; 
+    margin-bottom: 1.5rem; 
+    flex-wrap: wrap; 
+    gap: 0.5rem; 
+    position: relative;
+    z-index: 1;
+}
 .results-title { font-size: 1.5rem; font-weight: 600; }
 .results-count { font-size: 0.875rem; color: var(--accent-teal); font-weight: 500; }
 
@@ -413,7 +461,7 @@ body.light-mode .filter-select option {
     color: #0c4a6e;
 }
 
-/* Favorites Modal */
+/* Modal for favorites message */
 .favorites-modal-overlay {
     position: fixed;
     top: 0;
