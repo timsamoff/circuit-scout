@@ -57,6 +57,7 @@ async function checkScraperStatus() {
         const runBtn = document.getElementById('run-scraper-btn');
         
         if (status.running) {
+            // Show status bar
             if (statusBar) statusBar.style.display = 'flex';
             if (statusText) {
                 const elapsed = status.startTime ? Math.floor((Date.now() - status.startTime) / 1000) : 0;
@@ -71,6 +72,7 @@ async function checkScraperStatus() {
             if (cancelBtn) cancelBtn.disabled = false;
             if (runBtn) runBtn.disabled = true;
         } else {
+            // Hide status bar when not running
             if (statusBar && statusBar.style.display !== 'none') {
                 statusBar.style.display = 'none';
                 if (statusInterval) {
@@ -365,14 +367,23 @@ async function addFeed() {
             document.getElementById('feed-name').value = '';
             await loadFeeds();
             button.innerHTML = '<i class="fas fa-check"></i> Added!';
+            
+            // Force the status bar to appear immediately
+            const statusBar = document.getElementById('scraper-status-bar');
+            const statusText = document.getElementById('scraper-status-text');
+            if (statusBar) {
+                statusBar.style.display = 'flex';
+                if (statusText) statusText.innerHTML = 'Starting scrape for new feed...';
+            }
+            
+            // Start polling for status
+            startStatusPolling();
+            
             setTimeout(() => {
                 button.innerHTML = originalText;
                 button.disabled = false;
             }, 2000);
-            setTimeout(() => {
-                resetAndReload();
-                loadStats();
-            }, 3000);
+            
         } else {
             button.innerHTML = originalText;
             button.disabled = false;

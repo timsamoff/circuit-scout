@@ -58,9 +58,37 @@ app.get("/browserconfig.xml", (req, res) => {
 // Helper to construct RSS feed URL from blog URL
 function getRssUrl(blogUrl) {
     let cleanUrl = blogUrl.replace(/\/$/, '');
-    const urlParts = cleanUrl.split('/');
-    const baseUrl = urlParts.slice(0, 3).join('/');
-    return `${baseUrl}/feeds/posts/default`;
+    // Remove trailing /feeds/posts/default if present
+    cleanUrl = cleanUrl.replace(/\/feeds\/posts\/default.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds\/posts.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds.*$/, '');
+    
+    // Return the Atom feed URL (works best with Blogger)
+    return `${cleanUrl}/feeds/posts/default`;
+}
+
+// Alternative RSS feed URL
+function getAltRssUrl(blogUrl) {
+    let cleanUrl = blogUrl.replace(/\/$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds\/posts\/default.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds\/posts.*$/, '');
+    cleanUrl = cleanUrl.replace(/\/feeds.*$/, '');
+    return `${cleanUrl}/feeds/posts/default?alt=rss`;
+}
+
+// Test if a feed URL is valid
+async function isFeedUrlValid(feedUrl) {
+    try {
+        const response = await axios.get(feedUrl, {
+            timeout: 10000,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+        });
+        return response.status === 200;
+    } catch {
+        return false;
+    }
 }
 
 // Initialize SQLite
@@ -675,24 +703,23 @@ app.post("/api/feeds", async (req, res) => {
         }
         
         const newFeedId = this.lastID;
+        
+        // Send response immediately
         res.json({ id: newFeedId, url: rssUrl, name: feedName, blog_url: url, scraping: true });
         
+        // Scrape the feed in the background
         console.log(`🔄 Auto-scraping new feed: ${feedName}`);
         
-        const feed = { id: newFeedId, url: rssUrl, name: feedName };
-        const result = await scrapeSingleFeedWithProgress(feed);
-        console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits`);
-        
-        await cleanupAllDuplicates();
-        await autoExportToJSON();
-    });
-});
-
-app.get("/api/circuits/:id", (req, res) => {
-    db.get("SELECT * FROM circuits WHERE id = ?", [req.params.id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: "Not found" });
-        res.json(row);
+        try {
+            const feed = { id: newFeedId, url: rssUrl, name: feedName };
+            const result = await scrapeSingleFeedWithProgress(feed);
+            console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
+            
+            await cleanupAllDuplicates();
+            await autoExportToJSON();
+        } catch (scrapeErr) {
+            console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
+        }
     });
 });
 
@@ -841,6 +868,42 @@ db.get("SELECT COUNT(*) as count FROM circuits", async (err, row) => {
         await cleanupAllDuplicates();
         await autoExportToJSON();
     }
+});
+
+// Debug endpoint to test feed URLs
+app.post("/api/debug/feed", async (req, res) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "URL required" });
+    
+    const rssUrl = getRssUrl(url);
+    const altRssUrl = getAltRssUrl(url);
+    
+    const results = {
+        original: url,
+        atomFeed: rssUrl,
+        rssFeed: altRssUrl,
+        atomWorking: false,
+        rssWorking: false
+    };
+    
+    try {
+        const atomTest = await axios.get(rssUrl, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
+        results.atomWorking = atomTest.status === 200;
+        results.atomStatus = atomTest.status;
+    } catch (e) {
+        results.atomError = e.message;
+    }
+    
+    try {
+        const rssTest = await axios.get(altRssUrl, { timeout: 10000, headers: { "User-Agent": "Mozilla/5.0" } });
+        results.rssWorking = rssTest.status === 200;
+        results.rssStatus = rssTest.status;
+    } catch (e) {
+        results.rssError = e.message;
+    }
+    
+    console.log("Debug results:", results);
+    res.json(results);
 });
 
 app.listen(PORT, () => {
