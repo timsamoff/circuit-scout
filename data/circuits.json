@@ -1,5 +1,480 @@
 [
   {
+    "url": "https://generalguitargadgets.com/2018/07/11/fuzz-face-replica-kit-demo/",
+    "effect_name": "Fuzz Face Replica Kit Demo",
+    "type": "Fuzz",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "",
+    "components": {},
+    "description": "",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://generalguitargadgets.com/2016/08/03/j1-booster-demo-stratoblast/",
+    "effect_name": "J1 Booster Demo (stratoblaster)",
+    "type": "Boost",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "",
+    "components": {},
+    "description": "",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://generalguitargadgets.com/2014/12/04/new-ross-compressor-replica-kit/",
+    "effect_name": "New Ross Compressor Replica Kit",
+    "type": "Compressor",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://generalguitargadgets.com/wp-content/uploads/1m_dnr_kit-300x213.jpg",
+    "components": {},
+    "description": "",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/azabache.html",
+    "effect_name": "Azabache",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "overdrive"
+    ],
+    "image_url": "https://runoffgroove.com/azabache-perf.png",
+    "components": {},
+    "description": "Azabachean original overdrive inspired by classic Fender amps",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/britannia.html",
+    "effect_name": "Britannia",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "overdrive"
+    ],
+    "image_url": "https://runoffgroove.com/britannia-perf.png",
+    "components": {},
+    "description": "Britanniaan original overdrive inspired by the Vox AC-30 Top Boost amp",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/bb-pwr.html",
+    "effect_name": "Build A Breadboard Power Module",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "Breadboard power modulesimplify prototyping integrated circuitsby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/condor.html",
+    "effect_name": "Condor Cab Sim",
+    "type": "EQ",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "eq"
+    ],
+    "image_url": "https://runoffgroove.com/condor-perf.png",
+    "components": {},
+    "description": "Condor Cab Simprofessional-quality frequency response in a DIY-friendly circuitby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/doubled.html",
+    "effect_name": "Double D",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/hard.png",
+    "components": {},
+    "description": "Everyone that has tinkered with a 4049 IC knows there are six inverters onboard.  Most distortion designs for this chip use two or three stages and shunt the others.  It has always been an idea to uti...",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/eighteen.html",
+    "effect_name": "Eighteen",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/medium.png",
+    "components": {},
+    "description": "EighteenThe Marshall 18W adapted for use as a distortion stompboxby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/fetzervalve.html",
+    "effect_name": "A Closer Look At The Fetzer Valve",
+    "type": "Boost",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "boost",
+      "vintage"
+    ],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "A closer look at the Fetzer ValveFET booster based on a vintage Fender 12AX7 input stageby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/ginger.html",
+    "effect_name": "Ginger",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/ginger-perf.png",
+    "components": {},
+    "description": "Gingerthe Ampeg SB-12 Portaflex adapted for use as a distortion stompbox",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/6949.html",
+    "effect_name": "4069 To 4049",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "4069:4049 moduleeasily swap two popular CMOS chipsby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/grace.html",
+    "effect_name": "Grace / Big Daddy",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "Grace / Big DaddyTwo 386-based distortionsby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/littlegem.html",
+    "effect_name": "Little Gems",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "Little Gem & Little Gem MkII386-based mini-amplifiersby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/macruby.html",
+    "effect_name": "Macruby",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/macruby2tn.jpg",
+    "components": {},
+    "description": "MacRubyRuby amp built in a Macintosh Plusby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/ruby.html",
+    "effect_name": "Ruby",
+    "type": "Volume",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "volume"
+    ],
+    "image_url": "https://runoffgroove.com/ruby.png",
+    "components": {},
+    "description": "Ruby is an \"enhanced\" version of the Little Gem battery-powered amplifier. The architecture of the Little Gem has been updated with an input buffer (as found in the Little Gem MkII) feeding the invert...",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/mayqueen.html",
+    "effect_name": "Just A Spring Clean For The May Queen",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "overdrive"
+    ],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "May QueenTreble Booster/Overdriveby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/mreq.html",
+    "effect_name": "Mr. Eq",
+    "type": "EQ",
+    "parts_count": null,
+    "difficulty": "Beginner",
+    "tags": [
+      "eq"
+    ],
+    "image_url": "https://runoffgroove.com/medium.png",
+    "components": {},
+    "description": "Mr. EQa simple, yet potent DIY equalizerby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/mm2.html",
+    "effect_name": "Mockman 2.0",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/mm-perf.png",
+    "components": {},
+    "description": "Mockman 2.0distortion inspired by the Rockmanby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/omega.html",
+    "effect_name": "Omega",
+    "type": "Boost",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "boost"
+    ],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "OmegaA versatile FET booster engineby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/perftemplates.html",
+    "effect_name": "Perfboard Templates",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/small-template.png",
+    "components": {},
+    "description": "Perfboard layout templatesplan your next build with easeby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/peppermill.html",
+    "effect_name": "Peppermill",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Beginner",
+    "tags": [
+      "overdrive"
+    ],
+    "image_url": "https://runoffgroove.com/peppermill.png",
+    "components": {},
+    "description": "Peppermilla simple, transparent overdriveby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/phozer.html",
+    "effect_name": "Phozer",
+    "type": "Wah",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "wah"
+    ],
+    "image_url": "https://runoffgroove.com/hard.png",
+    "components": {},
+    "description": "PhozerLFO and rocker pedal twin-T wahby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/splitter-blend.html",
+    "effect_name": "Splitter",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/medium.png",
+    "components": {},
+    "description": "Splitter-BlendDual Parallel Effect Loopsby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/sd.html",
+    "effect_name": "Supreaux Deux",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/medium.png",
+    "components": {},
+    "description": "Supreaux DeuxThe Supro 16T adapted for use as a distortion stompboxby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/thunderbird.html",
+    "effect_name": "Thunderbird",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "overdrive"
+    ],
+    "image_url": "https://runoffgroove.com/tbird-pcb.jpg",
+    "components": {},
+    "description": "Thunderbirdan original overdrive inspired by the classic sound of a cranked 100W Marshall Super Lead amp",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/tonemender.html",
+    "effect_name": "Tonemender",
+    "type": "Boost",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "boost"
+    ],
+    "image_url": "https://runoffgroove.com/tonemender-perf.png",
+    "components": {},
+    "description": "Tonemenderultra-flexible tonestack with clean boostby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/tri-vibe.html",
+    "effect_name": "Tri",
+    "type": "Vibrato",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "vibrato"
+    ],
+    "image_url": "https://runoffgroove.com/tv-perf.png",
+    "components": {},
+    "description": "Tri-VibeA versatile modulation effect that offers true vibratoby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/22-7.html",
+    "effect_name": "22/7",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/22-7perf.png",
+    "components": {},
+    "description": "22/7 - Twenty-two SeventhsCMOS implementation of the Big Muff Piby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/tubereamer.html",
+    "effect_name": "Tube Reamer",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "overdrive",
+      "tube"
+    ],
+    "image_url": "https://runoffgroove.com/easy.png",
+    "components": {},
+    "description": "Tube Reamersimplified Tube Screamer overdriveby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/ubescreamer.html",
+    "effect_name": "Ube Screamer",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://runoffgroove.com/ube-perf.png",
+    "components": {},
+    "description": "UBE ScreamerTS-808 workalike built around the CD4049UBE logic ICby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/umble.html",
+    "effect_name": "Umble",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/hard.png",
+    "components": {},
+    "description": "UmbleA distortion stompbox inspired by Dumble amplifiersby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
+    "url": "https://runoffgroove.com/uno.html",
+    "effect_name": "Uno",
+    "type": "Distortion",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [
+      "distortion"
+    ],
+    "image_url": "https://runoffgroove.com/hard.png",
+    "components": {},
+    "description": "UnoThe Boogie MkI adapted for use as a distortion stompboxby runoffgroove.com",
+    "verified": false,
+    "category": "circuit"
+  },
+  {
     "url": "https://dirtboxlayouts.blogspot.com/2026/06/amptweaker-depth-finder.html",
     "effect_name": "Amptweaker Depth Finder",
     "type": null,

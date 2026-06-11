@@ -84,12 +84,10 @@ function decodeHtmlEntities(text) {
         decoded = decoded.split(entity).join(char);
     }
     
-    // Also handle numeric entities like &#123;
     decoded = decoded.replace(/&#(\d+);/g, (match, num) => {
         return String.fromCharCode(parseInt(num, 10));
     });
     
-    // Handle hex entities like &#x3C;
     decoded = decoded.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => {
         return String.fromCharCode(parseInt(hex, 16));
     });
@@ -217,12 +215,14 @@ db.exec(`
         url TEXT UNIQUE,
         name TEXT,
         blog_url TEXT,
+        source_type TEXT DEFAULT 'rss',
         enabled BOOLEAN DEFAULT 1,
         last_scraped DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_rss_feeds_url ON rss_feeds(url);
     CREATE INDEX IF NOT EXISTS idx_rss_feeds_enabled ON rss_feeds(enabled);
+    CREATE INDEX IF NOT EXISTS idx_rss_feeds_source_type ON rss_feeds(source_type);
 `, (err) => {
     if (err) console.error("❌ RSS feeds table error:", err.message);
     else console.log("✅ RSS feeds table ready.");
@@ -507,7 +507,7 @@ async function processEntryForScraping(item, feedType) {
 }
 
 // Process WordPress RSS feed entries
-async function processRssEntry(item) {
+async function processRssEntryForScraping(item) {
     try {
         let link = typeof item.link?.[0] === 'string' ? item.link[0] : "";
         let title = typeof item.title?.[0] === 'string' ? item.title[0] : "";
@@ -804,8 +804,81 @@ async function scrapePostPage(url) {
     }
 }
 
+// Static HTML scraping with progress
+async function scrapeStaticHtmlWithProgress(feed) {
+    console.log(`  📡 Starting static HTML scrape of ${feed.name} - ${feed.url}`);
+    
+    const { scrapeStaticListing } = await import('./scraper.js');
+    
+    let added = 0;
+    let skipped = 0;
+    
+    try {
+        const circuits = await scrapeStaticListing(feed.url, db);
+        
+        console.log(`    Found ${circuits.length} circuits from static listing`);
+        
+        for (const circuit of circuits) {
+            if (cancelRequested) {
+                console.log(`    ⚠️ Cancellation requested, stopping...`);
+                return { added, skipped, cancelled: true };
+            }
+            
+            scraperStatus.itemsProcessed++;
+            
+            const exists = await new Promise((resolve) => {
+                db.get("SELECT id FROM circuits WHERE url = ?", [circuit.url], (err, row) => {
+                    resolve(!err && row);
+                });
+            });
+            
+            if (exists) {
+                skipped++;
+                scraperStatus.itemsSkipped = skipped;
+                continue;
+            }
+            
+            await new Promise((resolve) => {
+                db.run(`INSERT INTO circuits 
+                    (url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [circuit.url, circuit.effect_name, circuit.type, circuit.parts_count,
+                     circuit.difficulty, circuit.tags, circuit.image_url, circuit.components,
+                     circuit.description, circuit.verified, circuit.category],
+                    (err) => { 
+                        if (err) console.error(`      Insert error: ${err.message}`);
+                        resolve(); 
+                    });
+            });
+            
+            added++;
+            scraperStatus.itemsAdded = added;
+            console.log(`      ✅ Added: ${circuit.effect_name}`);
+        }
+        
+        await new Promise((resolve) => {
+            db.run("UPDATE rss_feeds SET last_scraped = CURRENT_TIMESTAMP WHERE id = ?", [feed.id], (err) => {
+                if (err) console.error(`    Failed to update last_scraped: ${err.message}`);
+                else console.log(`    📅 Updated last_scraped timestamp for ${feed.name}`);
+                resolve();
+            });
+        });
+        
+    } catch (error) {
+        console.error(`    Error during static scrape: ${error.message}`);
+    }
+    
+    console.log(`  📊 Feed "${feed.name}" complete: +${added} new, ${skipped} duplicates`);
+    return { added, skipped, cancelled: false };
+}
+
 async function scrapeSingleFeedWithProgress(feed) {
     const { parseStringPromise } = await import('xml2js');
+    
+    // Handle static HTML sources
+    if (feed.source_type === 'static_html') {
+        return await scrapeStaticHtmlWithProgress(feed);
+    }
     
     let added = 0;
     let skipped = 0;
@@ -866,7 +939,7 @@ async function scrapeSingleFeedWithProgress(feed) {
                 if (feedType === 'atom') {
                     extracted = await processEntryForScraping(item, feedType);
                 } else {
-                    extracted = await processRssEntry(item);
+                    extracted = await processRssEntryForScraping(item);
                 }
                 
                 if (!extracted) continue;
@@ -1033,7 +1106,8 @@ app.get("/api/circuits", (req, res) => {
         countQuery += whereClause;
     }
     
-    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    // Use RANDOM() for true random ordering, not by date
+    query += " ORDER BY RANDOM() LIMIT ? OFFSET ?";
     
     db.get(countQuery, params, (err, countRow) => {
         if (err) {
@@ -1110,12 +1184,66 @@ app.patch("/api/feeds/:id/toggle", (req, res) => {
 });
 
 app.post("/api/feeds", async (req, res) => {
-    const { url, name, label } = req.body;
+    const { url, name, label, source_type } = req.body;
     
     if (!url) {
         return res.status(400).json({ error: "URL is required" });
     }
     
+    // Handle static HTML sites
+    if (source_type === 'static_html') {
+        const feedName = name || url.replace(/https?:\/\//, '').replace(/\/[^/]*$/, '');
+        
+        db.run("INSERT INTO rss_feeds (url, name, blog_url, source_type, enabled) VALUES (?, ?, ?, ?, 1)", 
+            [url, feedName, url, 'static_html'], 
+            async function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE')) {
+                        return res.status(400).json({ error: "This feed already exists" });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                
+                const newFeedId = this.lastID;
+                res.json({ id: newFeedId, url, name: feedName, blog_url: url, source_type: 'static_html', scraping: true });
+                
+                console.log(`🔄 Auto-scraping new static HTML site: ${feedName}`);
+                
+                scraperStatus = {
+                    running: true,
+                    currentFeed: feedName,
+                    currentPage: 0,
+                    itemsProcessed: 0,
+                    itemsAdded: 0,
+                    itemsSkipped: 0,
+                    startTime: Date.now(),
+                    feedsCompleted: 0,
+                    totalFeeds: 1,
+                    error: null
+                };
+                
+                try {
+                    const feed = { id: newFeedId, url, name: feedName, source_type: 'static_html' };
+                    const result = await scrapeSingleFeedWithProgress(feed);
+                    console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
+                    
+                    await cleanupAllDuplicates();
+                    await autoExportToJSON();
+                    
+                    scraperStatus.running = false;
+                    scraperStatus.itemsAdded = result.added;
+                    scraperStatus.itemsSkipped = result.skipped;
+                    
+                } catch (scrapeErr) {
+                    console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
+                    scraperStatus.running = false;
+                    scraperStatus.error = scrapeErr.message;
+                }
+            });
+        return;
+    }
+    
+    // Handle Blogger/WordPress feeds (existing logic)
     let baseUrl = url.replace(/\/search\/label\/.*$/, '').replace(/\/feeds\/posts\/default\/-\/.*$/, '');
     baseUrl = baseUrl.replace(/\/feed.*$/, '').replace(/\/rss.*$/, '').replace(/\/atom.*$/, '');
     baseUrl = baseUrl.replace(/\/post-sitemap.*$/, '').replace(/\/sitemap.*$/, '');
@@ -1138,50 +1266,52 @@ app.post("/api/feeds", async (req, res) => {
             return res.status(400).json({ error: "Could not find a working RSS feed for this Blogger blog." });
         }
         
-        db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [feedUrl, feedName, baseUrl], async function(err) {
-            if (err) {
-                if (err.message.includes('UNIQUE')) {
-                    return res.status(400).json({ error: "This feed already exists" });
+        db.run("INSERT INTO rss_feeds (url, name, blog_url, source_type, enabled) VALUES (?, ?, ?, 'rss', 1)", 
+            [feedUrl, feedName, baseUrl], 
+            async function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE')) {
+                        return res.status(400).json({ error: "This feed already exists" });
+                    }
+                    return res.status(500).json({ error: err.message });
                 }
-                return res.status(500).json({ error: err.message });
-            }
-            
-            const newFeedId = this.lastID;
-            res.json({ id: newFeedId, url: feedUrl, name: feedName, blog_url: baseUrl, label: label || null, scraping: true });
-            
-            console.log(`🔄 Auto-scraping new Blogger feed: ${feedName}`);
-            
-            scraperStatus = {
-                running: true,
-                currentFeed: feedName,
-                currentPage: 0,
-                itemsProcessed: 0,
-                itemsAdded: 0,
-                itemsSkipped: 0,
-                startTime: Date.now(),
-                feedsCompleted: 0,
-                totalFeeds: 1,
-                error: null
-            };
-            
-            try {
-                const feed = { id: newFeedId, url: feedUrl, name: feedName };
-                const result = await scrapeSingleFeedWithProgress(feed);
-                console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
                 
-                await cleanupAllDuplicates();
-                await autoExportToJSON();
+                const newFeedId = this.lastID;
+                res.json({ id: newFeedId, url: feedUrl, name: feedName, blog_url: baseUrl, label: label || null, scraping: true });
                 
-                scraperStatus.running = false;
-                scraperStatus.itemsAdded = result.added;
-                scraperStatus.itemsSkipped = result.skipped;
+                console.log(`🔄 Auto-scraping new Blogger feed: ${feedName}`);
                 
-            } catch (scrapeErr) {
-                console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
-                scraperStatus.running = false;
-                scraperStatus.error = scrapeErr.message;
-            }
-        });
+                scraperStatus = {
+                    running: true,
+                    currentFeed: feedName,
+                    currentPage: 0,
+                    itemsProcessed: 0,
+                    itemsAdded: 0,
+                    itemsSkipped: 0,
+                    startTime: Date.now(),
+                    feedsCompleted: 0,
+                    totalFeeds: 1,
+                    error: null
+                };
+                
+                try {
+                    const feed = { id: newFeedId, url: feedUrl, name: feedName };
+                    const result = await scrapeSingleFeedWithProgress(feed);
+                    console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
+                    
+                    await cleanupAllDuplicates();
+                    await autoExportToJSON();
+                    
+                    scraperStatus.running = false;
+                    scraperStatus.itemsAdded = result.added;
+                    scraperStatus.itemsSkipped = result.skipped;
+                    
+                } catch (scrapeErr) {
+                    console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
+                    scraperStatus.running = false;
+                    scraperStatus.error = scrapeErr.message;
+                }
+            });
         return;
     }
     
@@ -1194,11 +1324,13 @@ app.post("/api/feeds", async (req, res) => {
         feedName = name || baseUrl.replace(/https?:\/\//, '').replace(/www\./, '');
         feedUrl = `${baseUrl}/sitemap`;
         
-        db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [feedUrl, feedName, baseUrl], async function(err) {
-            if (err && !err.message.includes('UNIQUE')) {
-                console.error("Error saving feed:", err.message);
-            }
-        });
+        db.run("INSERT INTO rss_feeds (url, name, blog_url, source_type, enabled) VALUES (?, ?, ?, 'sitemap', 1)", 
+            [feedUrl, feedName, baseUrl], 
+            async function(err) {
+                if (err && !err.message.includes('UNIQUE')) {
+                    console.error("Error saving feed:", err.message);
+                }
+            });
         
         scraperStatus = {
             running: true,
@@ -1287,50 +1419,52 @@ app.post("/api/feeds", async (req, res) => {
     
     feedName = name || baseUrl.replace(/https?:\/\//, '').replace(/www\./, '');
     
-    db.run("INSERT INTO rss_feeds (url, name, blog_url, enabled) VALUES (?, ?, ?, 1)", [feedUrl, feedName, baseUrl], async function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE')) {
-                return res.status(400).json({ error: "This feed already exists" });
+    db.run("INSERT INTO rss_feeds (url, name, blog_url, source_type, enabled) VALUES (?, ?, ?, 'rss', 1)", 
+        [feedUrl, feedName, baseUrl], 
+        async function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE')) {
+                    return res.status(400).json({ error: "This feed already exists" });
+                }
+                return res.status(500).json({ error: err.message });
             }
-            return res.status(500).json({ error: err.message });
-        }
-        
-        const newFeedId = this.lastID;
-        res.json({ id: newFeedId, url: feedUrl, name: feedName, blog_url: baseUrl, scraping: true });
-        
-        console.log(`🔄 Auto-scraping new RSS feed: ${feedName}`);
-        
-        scraperStatus = {
-            running: true,
-            currentFeed: feedName,
-            currentPage: 0,
-            itemsProcessed: 0,
-            itemsAdded: 0,
-            itemsSkipped: 0,
-            startTime: Date.now(),
-            feedsCompleted: 0,
-            totalFeeds: 1,
-            error: null
-        };
-        
-        try {
-            const feed = { id: newFeedId, url: feedUrl, name: feedName };
-            const result = await scrapeSingleFeedWithProgress(feed);
-            console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
             
-            await cleanupAllDuplicates();
-            await autoExportToJSON();
+            const newFeedId = this.lastID;
+            res.json({ id: newFeedId, url: feedUrl, name: feedName, blog_url: baseUrl, scraping: true });
             
-            scraperStatus.running = false;
-            scraperStatus.itemsAdded = result.added;
-            scraperStatus.itemsSkipped = result.skipped;
+            console.log(`🔄 Auto-scraping new RSS feed: ${feedName}`);
             
-        } catch (scrapeErr) {
-            console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
-            scraperStatus.running = false;
-            scraperStatus.error = scrapeErr.message;
-        }
-    });
+            scraperStatus = {
+                running: true,
+                currentFeed: feedName,
+                currentPage: 0,
+                itemsProcessed: 0,
+                itemsAdded: 0,
+                itemsSkipped: 0,
+                startTime: Date.now(),
+                feedsCompleted: 0,
+                totalFeeds: 1,
+                error: null
+            };
+            
+            try {
+                const feed = { id: newFeedId, url: feedUrl, name: feedName };
+                const result = await scrapeSingleFeedWithProgress(feed);
+                console.log(`✅ Auto-scrape complete for ${feedName}: Added ${result.added} circuits, Skipped ${result.skipped} duplicates`);
+                
+                await cleanupAllDuplicates();
+                await autoExportToJSON();
+                
+                scraperStatus.running = false;
+                scraperStatus.itemsAdded = result.added;
+                scraperStatus.itemsSkipped = result.skipped;
+                
+            } catch (scrapeErr) {
+                console.error(`❌ Auto-scrape failed for ${feedName}:`, scrapeErr.message);
+                scraperStatus.running = false;
+                scraperStatus.error = scrapeErr.message;
+            }
+        });
 });
 
 app.get("/api/circuits/:id", (req, res) => {
@@ -1410,7 +1544,7 @@ app.post("/api/scrape", async (req, res) => {
     
     const feeds = await new Promise((resolve) => {
         db.all(`
-            SELECT id, name, url, last_scraped 
+            SELECT id, name, url, last_scraped, source_type 
             FROM rss_feeds 
             WHERE enabled = 1 
             AND (
@@ -1458,7 +1592,7 @@ app.post("/api/scrape", async (req, res) => {
             scraperStatus.currentFeed = feed.name;
             scraperStatus.currentPage = 0;
             
-            console.log(`\n📡 [${i + 1}/${feeds.length}] Processing: ${feed.name}`);
+            console.log(`\n📡 [${i + 1}/${feeds.length}] Processing: ${feed.name} (Type: ${feed.source_type || 'rss'})`);
             const result = await scrapeSingleFeedWithProgress(feed);
             
             scraperStatus.itemsAdded += result.added;
@@ -1524,5 +1658,6 @@ app.listen(PORT, () => {
     console.log(`   • Label support for Blogger feeds`);
     console.log(`   • WordPress RSS feed support`);
     console.log(`   • Sitemap support for WordPress sites`);
+    console.log(`   • Static HTML site scraping (e.g., runoffgroove.com)`);
     console.log(`   • HTML entity decoding for titles and descriptions\n`);
 });

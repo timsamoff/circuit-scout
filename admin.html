@@ -53,7 +53,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="feed-count">0</div>
-                    <div class="stat-label"><i class="fas fa-rss"></i> RSS Feeds</div>
+                    <div class="stat-label"><i class="fas fa-rss"></i> Feeds/Sites</div>
                 </div>
                 
                 <!-- Search/Filter Sidebar (matches user page exactly) -->
@@ -100,7 +100,7 @@
             </aside>
 
             <main class="admin-main">
-                <!-- RSS Feeds Section (Collapsible - collapsed by default) -->
+                <!-- RSS Feeds Section (Collapsed by default) -->
                 <div class="card collapsible collapsed">
                     <div class="card-header" data-target="feeds-content">
                         <h2 class="card-title"><i class="fas fa-rss"></i> RSS Feeds</h2>
@@ -120,7 +120,26 @@
                     </div>
                 </div>
 
-                <!-- Add Circuit Section (Collapsible - collapsed by default) -->
+                <!-- Static HTML Sites Section (Collapsible - collapsed by default) -->
+                <div class="card collapsible collapsed">
+                    <div class="card-header" data-target="static-content">
+                        <h2 class="card-title"><i class="fas fa-file-code"></i> Static HTML Sites</h2>
+                        <button class="collapse-btn" type="button"><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                    <div class="card-content">
+                        <form id="add-static-site-form" class="form-inline">
+                            <input type="url" id="static-url" placeholder="https://runoffgroove.com/articles.html" required>
+                            <input type="text" id="static-name" placeholder="Site Name (e.g., Runoffgroove)">
+                            <button type="submit" id="add-static-btn" class="btn-primary"><i class="fas fa-plus"></i> Add Static Site</button>
+                        </form>
+                        <p class="form-hint"><i class="fas fa-info-circle"></i> Enter the URL of a page that lists project links (like articles.html). The scraper will find all .html links and extract circuit info from each.</p>
+                        <div id="static-sites-list" class="feeds-list" style="margin-top: 1rem;">
+                            <div class="loading">Loading static sites...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Circuit Section (Collapsed by default) -->
                 <div class="card collapsible collapsed">
                     <div class="card-header" data-target="add-circuit-content">
                         <h2 class="card-title"><i class="fas fa-plus-circle"></i> Add Circuit Manually</h2>
