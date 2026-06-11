@@ -1,5 +1,31 @@
 [
   {
+    "url": "https://dirtboxlayouts.blogspot.com/2026/06/amptweaker-depth-finder.html",
+    "effect_name": "Amptweaker Depth Finder",
+    "type": null,
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEidfouQqDuS1kOHcRLpITIUz5OiTe2LpYwIBXzKWncPVamBgH4jCn8llkeBSqXSkg-cGdzIzAY0Nrb_cU2VZDGZunaCc9Q-DgxertV5MX_4VWqZo0nvOfEkHb7_GhJBLQZqnJrL47IbmNjftyhnr65K_JvPBOVI9WCSN3VcldJdCO4tQZrIzeYs6VSCYCYx/w400-h400/AMPTWEAKER%20DEPTH%20FINDER.png",
+    "components": {},
+    "description": " Schematic is avaiable HERE. ",
+    "verified": true,
+    "category": "circuit"
+  },
+  {
+    "url": "https://dirtboxlayouts.blogspot.com/2026/06/twa-source-code-overdrive.html",
+    "effect_name": "Twa Source Code Overdrive",
+    "type": "Overdrive",
+    "parts_count": null,
+    "difficulty": "Intermediate",
+    "tags": [],
+    "image_url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhTfbZZWDeSIeBiLmwpE6rsrNQ5kqt5wRLSTYiqRRqwtiEeMRXwvF4FEiPsLiHWFJcbmhn62_htwWHtJgFKRmM2wYUXgWPQ8n85Wh3CVCOw87Id6wyE2Q0FufJ5HTXSIdcHVwwZmsIgKuJ9-5QMK0vP2KrUPSjhgi5QkpJ_OcPGQskJp07pSVNGoiko7QmN/w330-h400/TWA%20SOURCE%20CODE%20OVERDRIVE.png",
+    "components": {},
+    "description": " Schematic is avaiable HERE. ",
+    "verified": true,
+    "category": "circuit"
+  },
+  {
     "url": "https://effectslayouts.blogspot.com/2014/11/mxr-distortion.html",
     "effect_name": "Mxr Distortion +",
     "type": "Distortion",
