@@ -56,7 +56,7 @@ let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites')
 
 // ========== HELPER FUNCTIONS ==========
 
-// Fisher-Yates shuffle algorithm for random ordering
+// Fisher-Yates shuffle algorithm for randomness
 function shuffleArray(array) {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
