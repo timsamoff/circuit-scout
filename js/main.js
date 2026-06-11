@@ -17,8 +17,6 @@
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE = isLocalhost ? 'http://localhost:3000/api' : '/data';
 
-// console.log(`🔍 Running in ${isLocalhost ? 'LOCALHOST mode (using API)' : 'STATIC mode (using circuits.json)'}`);
-
 // Pagination state
 let currentPage = 1;
 let totalPages = 1;
@@ -182,7 +180,7 @@ async function loadMoreCircuits(reset = false) {
             // Use API when running locally
             const params = new URLSearchParams({
                 page: currentPage,
-                limit: 100, // Get more at once for better shuffling
+                limit: 20,
                 search: filterState.search,
                 type: filterState.type,
                 difficulty: filterState.difficulty,
@@ -195,31 +193,22 @@ async function loadMoreCircuits(reset = false) {
                 if (!value) params.delete(key);
             }
             
-            const cacheBuster = Date.now();
-            const response = await fetch(`${API_BASE}/circuits?${params}&_=${cacheBuster}`);
-
+            const response = await fetch(`${API_BASE}/circuits?${params}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             
-            // Shuffle ALL circuits for true randomness
-            const shuffled = shuffleArray(data.circuits);
-            //console.log(`🔄 API mode - Total circuits: ${shuffled.length}, First 3:`, shuffled.slice(0, 3).map(c => c.effect_name));
-            
-            // Paginate from shuffled results
-            const start = (currentPage - 1) * 20;
-            circuits = shuffled.slice(start, start + 20);
+            // Shuffle circuits for random order on every load
+            circuits = shuffleArray(data.circuits);
             totalResults = data.total;
-            totalPages = Math.ceil(data.total / 20);
+            totalPages = data.totalPages;
             hasMore = currentPage < totalPages;
         } else {
             // Use static JSON on GitHub Pages
             if (!allCircuitsCache) {
                 allCircuitsCache = await loadCircuitsFromJSON();
-                // Shuffle EVERY time the page loads - prevents any bias
-                allCircuitsCache = shuffleArray(allCircuitsCache);
             }
             
-            // Apply filters to shuffled cache
+            // Apply filters
             let filtered = [...allCircuitsCache];
             
             // Search filter
@@ -263,7 +252,8 @@ async function loadMoreCircuits(reset = false) {
             totalPages = Math.ceil(totalResults / 20);
             const start = (currentPage - 1) * 20;
             
-            // No need to shuffle again - cache is already shuffled fresh
+            // Shuffle before pagination for random order on every page load
+            filtered = shuffleArray(filtered);
             circuits = filtered.slice(start, start + 20);
             hasMore = currentPage < totalPages;
         }
@@ -447,7 +437,6 @@ async function loadFilterOptions() {
         } else {
             if (!allCircuitsCache) {
                 allCircuitsCache = await loadCircuitsFromJSON();
-                allCircuitsCache = shuffleArray(allCircuitsCache);
             }
             types = [...new Set(allCircuitsCache.map(c => c.type).filter(t => t))];
             difficulties = [...new Set(allCircuitsCache.map(c => c.difficulty).filter(d => d))];

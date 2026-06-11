@@ -318,6 +318,36 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
     background: var(--accent-blue);
 }
 
+/* Firefox scrollbar styling */
+.modal {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-cyan) var(--border);
+}
+
+/* Scrollable modal content */
+.modal-scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-scrollable::-webkit-scrollbar-track {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.modal-scrollable::-webkit-scrollbar-thumb {
+    background: var(--accent-cyan);
+    border-radius: 3px;
+}
+
+.modal-scrollable::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-blue);
+}
+
+.modal-scrollable {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-cyan) var(--border);
+}
+
 .circuits-admin-list {
     display: flex;
     flex-direction: column;
@@ -486,8 +516,10 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
     background: var(--admin-surface);
     border-radius: 16px;
     padding: 1.5rem;
-    max-width: 400px;
+    max-width: 600px;
     width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
     border: 1px solid var(--modal-border);
     box-shadow: var(--shadow-md);
 }
