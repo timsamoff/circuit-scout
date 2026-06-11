@@ -3,7 +3,7 @@ node_modules/
 package-lock.json
 
 # Database
-# circuits.db
+circuits.db
 *.db-journal
 
 # Environment
