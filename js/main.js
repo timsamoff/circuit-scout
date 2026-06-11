@@ -211,6 +211,9 @@ async function loadMoreCircuits(reset = false) {
             // Apply filters
             let filtered = [...allCircuitsCache];
             
+            // Filter out ignored circuits (they won't show on public site)
+            filtered = filtered.filter(c => !c.ignored);
+            
             // Search filter
             if (filterState.search) {
                 const searchLower = filterState.search.toLowerCase();
@@ -253,8 +256,8 @@ async function loadMoreCircuits(reset = false) {
             const start = (currentPage - 1) * 20;
             
             // Shuffle before pagination for random order on every page load
-            filtered = shuffleArray(filtered);
-            circuits = filtered.slice(start, start + 20);
+            const shuffled = shuffleArray(filtered);
+            circuits = shuffled.slice(start, start + 20);
             hasMore = currentPage < totalPages;
         }
         

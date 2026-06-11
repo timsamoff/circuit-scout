@@ -154,7 +154,7 @@ async function loadMoreCircuits(reset = false) {
         if (filterState.type) params.append('type', filterState.type);
         if (filterState.difficulty) params.append('difficulty', filterState.difficulty);
         
-        const response = await fetch(`${API_BASE}/circuits?${params}`);
+        const response = await fetch(`${API_BASE}/admin/circuits?${params}`);
         const data = await response.json();
         
         totalResults = data.total;
@@ -215,10 +215,13 @@ function renderCircuitsList(circuits, append = false) {
             '<span class="verified-badge-small">Verified</span>' : 
             '<span class="unverified-badge-small">Unverified</span>';
         
+        let ignoredBadge = circuit.ignored ? 
+            '<span class="ignored-badge-small"><i class="fas fa-ban"></i> Ignored</span>' : '';
+        
         return `
         <div class="admin-circuit-item" data-id="${circuit.id}">
             <div class="admin-circuit-info">
-                <h4>${escapeHtml(circuit.effect_name || 'Untitled')} ${categoryBadge} ${verificationBadge}</h4>
+                <h4>${escapeHtml(circuit.effect_name || 'Untitled')} ${categoryBadge} ${verificationBadge} ${ignoredBadge}</h4>
                 <p>${escapeHtml(circuit.type || 'No type')} | ${circuit.parts_count || '?'} parts | ${circuit.difficulty || 'Not set'}</p>
                 <small>${circuit.url ? escapeHtml(circuit.url.substring(0, 60)) + '...' : ''}</small>
             </div>
@@ -296,7 +299,7 @@ async function loadFilterOptions() {
 // ========== STATS AND FEEDS ==========
 async function loadStats() {
     try {
-        const res = await fetch(`${API_BASE}/stats`);
+        const res = await fetch(`${API_BASE}/admin/stats`);
         const stats = await res.json();
         const totalElem = document.getElementById('total-count');
         if (totalElem) totalElem.textContent = stats.total || 0;
@@ -588,6 +591,13 @@ async function editCircuit(id) {
                         </select>
                     </div>
                     <div class="form-group">
+                        <label><i class="fas fa-ban"></i> Ignored (skip in future scrapes)</label>
+                        <select id="edit-ignored" class="filter-select">
+                            <option value="false" ${!circuit.ignored ? 'selected' : ''}>No - Include in scrapes</option>
+                            <option value="true" ${circuit.ignored ? 'selected' : ''}>Yes - Skip in future scrapes</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Image URL</label>
                         <input type="url" id="edit-image_url" value="${escapeHtml(circuit.image_url || '')}" class="filter-input">
                     </div>
@@ -624,6 +634,7 @@ async function editCircuit(id) {
             tags: document.getElementById('edit-tags').value.split(',').map(t => t.trim()).filter(t => t),
             category: document.getElementById('edit-category').value,
             verified: document.getElementById('edit-verified').value === 'true',
+            ignored: document.getElementById('edit-ignored').value === 'true',
             image_url: document.getElementById('edit-image_url').value.trim() || null,
             description: document.getElementById('edit-description').value.trim() || null,
             components: null

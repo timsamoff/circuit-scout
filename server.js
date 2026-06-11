@@ -196,11 +196,13 @@ db.exec(`
         components TEXT,
         description TEXT,
         verified BOOLEAN DEFAULT 0,
+        ignored BOOLEAN DEFAULT 0,
         category TEXT DEFAULT 'circuit',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_circuits_url ON circuits(url);
     CREATE INDEX IF NOT EXISTS idx_circuits_verified ON circuits(verified);
+    CREATE INDEX IF NOT EXISTS idx_circuits_ignored ON circuits(ignored);
     CREATE INDEX IF NOT EXISTS idx_circuits_category ON circuits(category);
     CREATE INDEX IF NOT EXISTS idx_circuits_type ON circuits(type);
     CREATE INDEX IF NOT EXISTS idx_circuits_difficulty ON circuits(difficulty);
@@ -226,6 +228,16 @@ db.exec(`
 `, (err) => {
     if (err) console.error("❌ RSS feeds table error:", err.message);
     else console.log("✅ RSS feeds table ready.");
+});
+
+// Add ignored column to existing circuits table if it doesn't exist
+db.all("PRAGMA table_info(circuits)", (err, rows) => {
+    if (err) return;
+    const hasIgnored = rows.some(row => row.name === 'ignored');
+    if (!hasIgnored) {
+        console.log("📦 Adding ignored column to circuits table...");
+        db.run("ALTER TABLE circuits ADD COLUMN ignored BOOLEAN DEFAULT 0");
+    }
 });
 
 // ========== DUPLICATE CLEANUP FUNCTIONS ==========
@@ -371,7 +383,7 @@ async function cleanupAllDuplicates() {
 
 async function autoExportToJSON() {
     return new Promise((resolve, reject) => {
-        db.all("SELECT url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category FROM circuits ORDER BY created_at DESC", 
+        db.all("SELECT url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, ignored, category FROM circuits ORDER BY created_at DESC", 
             async (err, rows) => {
                 if (err) {
                     console.error("Export failed:", err);
@@ -390,6 +402,7 @@ async function autoExportToJSON() {
                     components: row.components ? JSON.parse(row.components) : {},
                     description: row.description,
                     verified: row.verified === 1,
+                    ignored: row.ignored === 1,
                     category: row.category || 'circuit'
                 }));
                 
@@ -808,12 +821,11 @@ async function scrapePostPage(url) {
 async function scrapeStaticHtmlWithProgress(feed) {
     console.log(`  📡 Starting static HTML scrape of ${feed.name} - ${feed.url}`);
     
-    const { scrapeStaticListing } = await import('./scraper.js');
-    
     let added = 0;
     let skipped = 0;
     
     try {
+        const { scrapeStaticListing } = await import('./scraper.js');
         const circuits = await scrapeStaticListing(feed.url, db);
         
         console.log(`    Found ${circuits.length} circuits from static listing`);
@@ -826,15 +838,20 @@ async function scrapeStaticHtmlWithProgress(feed) {
             
             scraperStatus.itemsProcessed++;
             
-            const exists = await new Promise((resolve) => {
-                db.get("SELECT id FROM circuits WHERE url = ?", [circuit.url], (err, row) => {
-                    resolve(!err && row);
+            // Check if circuit exists and if it's ignored
+            const existing = await new Promise((resolve) => {
+                db.get("SELECT id, ignored FROM circuits WHERE url = ?", [circuit.url], (err, row) => {
+                    resolve(err ? null : row);
                 });
             });
             
-            if (exists) {
-                skipped++;
-                scraperStatus.itemsSkipped = skipped;
+            if (existing) {
+                if (existing.ignored === 1) {
+                    console.log(`      ⏭️ Skipping ignored circuit: ${circuit.effect_name}`);
+                } else {
+                    skipped++;
+                    scraperStatus.itemsSkipped = skipped;
+                }
                 continue;
             }
             
@@ -866,6 +883,7 @@ async function scrapeStaticHtmlWithProgress(feed) {
         
     } catch (error) {
         console.error(`    Error during static scrape: ${error.message}`);
+        console.error(error.stack);
     }
     
     console.log(`  📊 Feed "${feed.name}" complete: +${added} new, ${skipped} duplicates`);
@@ -946,14 +964,19 @@ async function scrapeSingleFeedWithProgress(feed) {
                 
                 scraperStatus.itemsProcessed++;
                 
-                const exists = await new Promise((resolve) => {
-                    db.get("SELECT id FROM circuits WHERE url = ?", [extracted.url], (err, row) => {
-                        resolve(!err && row);
+                // Check if circuit exists and if it's ignored
+                const existing = await new Promise((resolve) => {
+                    db.get("SELECT id, ignored FROM circuits WHERE url = ?", [extracted.url], (err, row) => {
+                        resolve(err ? null : row);
                     });
                 });
                 
-                if (exists) {
-                    skipped++;
+                if (existing) {
+                    if (existing.ignored === 1) {
+                        console.log(`      ⏭️ Skipping ignored circuit: ${extracted.effect_name}`);
+                    } else {
+                        skipped++;
+                    }
                     continue;
                 }
                 
@@ -1058,6 +1081,9 @@ app.post("/api/debug/feed", async (req, res) => {
     res.json(results);
 });
 
+// ========== PUBLIC ENDPOINTS (exclude ignored circuits) ==========
+
+// Public circuits endpoint - excludes ignored circuits
 app.get("/api/circuits", (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -1068,7 +1094,115 @@ app.get("/api/circuits", (req, res) => {
     const typeFilter = req.query.type || "";
     const difficultyFilter = req.query.difficulty || "";
     
-    let query = "SELECT * FROM circuits";
+    let query = "SELECT id, url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, ignored, category, created_at FROM circuits WHERE ignored = 0";
+    let countQuery = "SELECT COUNT(*) as total FROM circuits WHERE ignored = 0";
+    let params = [];
+    let conditions = [];
+    
+    if (search && search.trim() !== '') {
+        conditions.push("(effect_name LIKE ? OR type LIKE ? OR tags LIKE ?)");
+        const searchPattern = `%${search.trim()}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+    }
+    
+    if (typeFilter && typeFilter !== '') {
+        conditions.push("type = ?");
+        params.push(typeFilter);
+    }
+    
+    if (difficultyFilter && difficultyFilter !== '') {
+        conditions.push("difficulty = ?");
+        params.push(difficultyFilter);
+    }
+    
+    if (verifiedFilter === 'true') {
+        conditions.push("verified = 1");
+    } else if (verifiedFilter === 'false') {
+        conditions.push("verified = 0");
+    }
+    
+    if (categoryFilter && categoryFilter !== 'all' && categoryFilter !== '') {
+        conditions.push("category = ?");
+        params.push(categoryFilter);
+    }
+    
+    if (conditions.length) {
+        const whereClause = " AND " + conditions.join(" AND ");
+        query += whereClause;
+        countQuery += whereClause;
+    }
+    
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    
+    db.get(countQuery, params, (err, countRow) => {
+        if (err) {
+            console.error('Count error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        const total = countRow?.total || 0;
+        
+        db.all(query, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                console.error('Query error:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            
+            res.json({
+                circuits: rows,
+                total: total,
+                page: page,
+                limit: limit,
+                totalPages: Math.ceil(total / limit)
+            });
+        });
+    });
+});
+
+// Public filters endpoint - excludes ignored circuits
+app.get("/api/filters", (req, res) => {
+    db.all("SELECT DISTINCT type FROM circuits WHERE type IS NOT NULL AND type != '' AND ignored = 0", (err, types) => {
+        db.all("SELECT DISTINCT difficulty FROM circuits WHERE difficulty IS NOT NULL AND difficulty != '' AND ignored = 0", (err, difficulties) => {
+            db.all("SELECT DISTINCT category FROM circuits WHERE category IS NOT NULL AND ignored = 0", (err, categories) => {
+                const difficultyOrder = { 'Beginner': 1, 'Intermediate': 2, 'Advanced': 3, 'Expert': 4 };
+                const sortedDifficulties = (difficulties.map(d => d.difficulty).filter(d => d)).sort((a, b) => (difficultyOrder[a] || 99) - (difficultyOrder[b] || 99));
+                
+                res.json({
+                    types: types.map(t => t.type).filter(t => t),
+                    difficulties: sortedDifficulties,
+                    categories: categories.map(c => c.category).filter(c => c)
+                });
+            });
+        });
+    });
+});
+
+// Public stats endpoint - excludes ignored circuits
+app.get("/api/stats", (req, res) => {
+    db.get("SELECT COUNT(*) as total FROM circuits WHERE ignored = 0", (err, row) => {
+        db.get("SELECT COUNT(*) as verified FROM circuits WHERE verified = 1 AND ignored = 0", (err, verifiedRow) => {
+            res.json({ 
+                total: row?.total || 0,
+                verified: verifiedRow?.verified || 0
+            });
+        });
+    });
+});
+
+// ========== ADMIN ENDPOINTS (include ignored circuits) ==========
+
+// Admin circuits endpoint - includes ignored circuits
+app.get("/api/admin/circuits", (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const search = req.query.search || "";
+    const verifiedFilter = req.query.verified;
+    const categoryFilter = req.query.category;
+    const typeFilter = req.query.type || "";
+    const difficultyFilter = req.query.difficulty || "";
+    
+    let query = "SELECT id, url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, ignored, category, created_at FROM circuits";
     let countQuery = "SELECT COUNT(*) as total FROM circuits";
     let params = [];
     let conditions = [];
@@ -1106,8 +1240,7 @@ app.get("/api/circuits", (req, res) => {
         countQuery += whereClause;
     }
     
-    // Use RANDOM() for true random ordering, not by date
-    query += " ORDER BY RANDOM() LIMIT ? OFFSET ?";
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
     
     db.get(countQuery, params, (err, countRow) => {
         if (err) {
@@ -1134,33 +1267,22 @@ app.get("/api/circuits", (req, res) => {
     });
 });
 
-app.get("/api/filters", (req, res) => {
-    db.all("SELECT DISTINCT type FROM circuits WHERE type IS NOT NULL AND type != ''", (err, types) => {
-        db.all("SELECT DISTINCT difficulty FROM circuits WHERE difficulty IS NOT NULL AND difficulty != ''", (err, difficulties) => {
-            db.all("SELECT DISTINCT category FROM circuits WHERE category IS NOT NULL", (err, categories) => {
-                const difficultyOrder = { 'Beginner': 1, 'Intermediate': 2, 'Advanced': 3, 'Expert': 4 };
-                const sortedDifficulties = (difficulties.map(d => d.difficulty).filter(d => d)).sort((a, b) => (difficultyOrder[a] || 99) - (difficultyOrder[b] || 99));
-                
-                res.json({
-                    types: types.map(t => t.type).filter(t => t),
-                    difficulties: sortedDifficulties,
-                    categories: categories.map(c => c.category).filter(c => c)
+// Admin stats endpoint - includes ignored circuits
+app.get("/api/admin/stats", (req, res) => {
+    db.get("SELECT COUNT(*) as total FROM circuits", (err, row) => {
+        db.get("SELECT COUNT(*) as verified FROM circuits WHERE verified = 1", (err, verifiedRow) => {
+            db.get("SELECT COUNT(*) as ignored FROM circuits WHERE ignored = 1", (err, ignoredRow) => {
+                res.json({ 
+                    total: row?.total || 0,
+                    verified: verifiedRow?.verified || 0,
+                    ignored: ignoredRow?.ignored || 0
                 });
             });
         });
     });
 });
 
-app.get("/api/stats", (req, res) => {
-    db.get("SELECT COUNT(*) as total FROM circuits", (err, row) => {
-        db.get("SELECT COUNT(*) as verified FROM circuits WHERE verified = 1", (err, verifiedRow) => {
-            res.json({ 
-                total: row?.total || 0,
-                verified: verifiedRow?.verified || 0
-            });
-        });
-    });
-});
+// ========== SHARED ENDPOINTS (circuit CRUD operations) ==========
 
 app.get("/api/feeds", (req, res) => {
     db.all("SELECT * FROM rss_feeds ORDER BY created_at DESC", (err, rows) => {
@@ -1358,15 +1480,19 @@ app.post("/api/feeds", async (req, res) => {
                 console.log(`    Processing URL ${i + 1}/${sitemapUrls.length}...`);
             }
             
-            const exists = await new Promise((resolve) => {
-                db.get("SELECT id FROM circuits WHERE url = ?", [postUrl], (err, row) => {
-                    resolve(!err && row);
+            const existing = await new Promise((resolve) => {
+                db.get("SELECT id, ignored FROM circuits WHERE url = ?", [postUrl], (err, row) => {
+                    resolve(err ? null : row);
                 });
             });
             
-            if (exists) {
-                skipped++;
-                scraperStatus.itemsSkipped = skipped;
+            if (existing) {
+                if (existing.ignored === 1) {
+                    console.log(`      ⏭️ Skipping ignored circuit from sitemap`);
+                } else {
+                    skipped++;
+                    scraperStatus.itemsSkipped = skipped;
+                }
                 continue;
             }
             
@@ -1476,7 +1602,7 @@ app.get("/api/circuits/:id", (req, res) => {
 });
 
 app.put("/api/circuits/:id", async (req, res) => {
-    const { effect_name, type, parts_count, difficulty, tags, image_url, description, verified, category } = req.body;
+    const { effect_name, type, parts_count, difficulty, tags, image_url, description, verified, category, ignored } = req.body;
     
     db.run(`UPDATE circuits SET 
         effect_name = ?,
@@ -1487,9 +1613,10 @@ app.put("/api/circuits/:id", async (req, res) => {
         image_url = ?,
         description = ?,
         verified = ?,
-        category = ?
+        category = ?,
+        ignored = ?
         WHERE id = ?`,
-        [effect_name, type, parts_count, difficulty, tags ? JSON.stringify(tags) : null, image_url, description, verified ? 1 : 0, category || 'circuit', req.params.id],
+        [effect_name, type, parts_count, difficulty, tags ? JSON.stringify(tags) : null, image_url, description, verified ? 1 : 0, category || 'circuit', ignored ? 1 : 0, req.params.id],
         async function(err) {
             if (err) return res.status(500).json({ error: err.message });
             await autoExportToJSON();
@@ -1499,10 +1626,10 @@ app.put("/api/circuits/:id", async (req, res) => {
 });
 
 app.post("/api/circuits", async (req, res) => {
-    const { url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category } = req.body;
+    const { url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category, ignored } = req.body;
     
-    db.run(`INSERT OR REPLACE INTO circuits (url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [url, effect_name, type, parts_count, difficulty, tags ? JSON.stringify(tags) : null, image_url, components ? JSON.stringify(components) : null, description, verified ? 1 : 0, category || 'circuit'],
+    db.run(`INSERT OR REPLACE INTO circuits (url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, category, ignored) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [url, effect_name, type, parts_count, difficulty, tags ? JSON.stringify(tags) : null, image_url, components ? JSON.stringify(components) : null, description, verified ? 1 : 0, category || 'circuit', ignored ? 1 : 0],
         async function(err) {
             if (err) return res.status(500).json({ error: err.message });
             await autoExportToJSON();
@@ -1659,5 +1786,7 @@ app.listen(PORT, () => {
     console.log(`   • WordPress RSS feed support`);
     console.log(`   • Sitemap support for WordPress sites`);
     console.log(`   • Static HTML site scraping (e.g., runoffgroove.com)`);
+    console.log(`   • Ignored flag to prevent re-adding circuits`);
+    console.log(`   • Separate public/admin API endpoints`);
     console.log(`   • HTML entity decoding for titles and descriptions\n`);
 });

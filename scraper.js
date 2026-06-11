@@ -518,14 +518,18 @@ async function scrapeStaticHtmlSource(feed, db) {
     
     for (const circuit of circuits) {
         // Check if already exists
-        const exists = await new Promise((resolve) => {
-            db.get("SELECT id FROM circuits WHERE url = ?", [circuit.url], (err, row) => {
-                resolve(!err && row);
+        const existing = await new Promise((resolve) => {
+            db.get("SELECT id, ignored FROM circuits WHERE url = ?", [link], (err, row) => {
+                resolve(err ? null : row);
             });
         });
-        
-        if (exists) {
-            skipped++;
+
+        if (existing) {
+            if (existing.ignored === 1) {
+                console.log(`   ⏭️ Skipping ignored circuit: ${extracted?.effect_name || link}`);
+            } else {
+                skippedFromFeed++;
+            }
             continue;
         }
         
@@ -645,14 +649,18 @@ async function scrapeAllFeeds() {
                     
                     if (!link) continue;
                     
-                    const exists = await new Promise((resolve) => {
-                        db.get("SELECT id FROM circuits WHERE url = ?", [link], (err, row) => {
-                            resolve(!err && row);
+                    const existing = await new Promise((resolve) => {
+                        db.get("SELECT id, ignored FROM circuits WHERE url = ?", [circuit.url], (err, row) => {
+                            resolve(err ? null : row);
                         });
                     });
-                    
-                    if (exists) {
-                        skippedFromFeed++;
+
+                    if (existing) {
+                        if (existing.ignored === 1) {
+                            console.log(`      ⏭️ Skipping ignored circuit: ${circuit.effect_name}`);
+                        } else {
+                            skipped++;
+                        }
                         continue;
                     }
                     
