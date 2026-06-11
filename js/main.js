@@ -54,6 +54,23 @@ const resultCountSpan = document.getElementById('result-count');
 // Favorites state
 let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]'));
 
+// ========== HELPER FUNCTIONS ==========
+
+// Fisher-Yates shuffle algorithm for random ordering
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+}
+
 // ========== DARK MODE ==========
 function initTheme() {
     const savedTheme = localStorage.getItem('theme');
@@ -84,7 +101,6 @@ function toggleTheme() {
 
 // ========== FAVORITES MODAL ==========
 function showFavoritesModal() {
-    // Remove existing modal if present
     const existingModal = document.querySelector('.favorites-modal-overlay');
     if (existingModal) existingModal.remove();
     
@@ -100,7 +116,6 @@ function showFavoritesModal() {
     `;
     document.body.appendChild(modal);
     
-    // Close modal when clicking outside
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
@@ -111,7 +126,6 @@ function showFavoritesModal() {
 // ========== LOAD CIRCUITS ==========
 async function loadCircuitsFromJSON() {
     try {
-        // Try multiple possible paths
         const paths = [
             '/data/circuits.json',
             'data/circuits.json',
@@ -182,7 +196,9 @@ async function loadMoreCircuits(reset = false) {
             const response = await fetch(`${API_BASE}/circuits?${params}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
-            circuits = data.circuits;
+            
+            // Shuffle circuits for random order on every load
+            circuits = shuffleArray(data.circuits);
             totalResults = data.total;
             totalPages = data.totalPages;
             hasMore = currentPage < totalPages;
@@ -235,6 +251,9 @@ async function loadMoreCircuits(reset = false) {
             totalResults = filtered.length;
             totalPages = Math.ceil(totalResults / 20);
             const start = (currentPage - 1) * 20;
+            
+            // Shuffle before pagination for random order on every page load
+            filtered = shuffleArray(filtered);
             circuits = filtered.slice(start, start + 20);
             hasMore = currentPage < totalPages;
         }
@@ -474,7 +493,7 @@ function toggleFavFilter() {
         favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
     } else {
         if (favorites.size === 0) {
-            showFavoritesModal();  // This should show the modal
+            showFavoritesModal();
             return;
         }
         filterState.favorites = true;
@@ -482,12 +501,6 @@ function toggleFavFilter() {
         favFilterBtn.innerHTML = '<i class="fas fa-star"></i> Favorites ON';
     }
     resetAndReload();
-}
-
-// ========== HELPER FUNCTIONS ==========
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
 }
 
 // ========== EVENT LISTENERS ==========
