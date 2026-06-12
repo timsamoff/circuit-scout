@@ -51,8 +51,10 @@ const favFilterBtn = document.getElementById('fav-filter-btn');
 const themeToggle = document.getElementById('theme-toggle');
 const resultCountSpan = document.getElementById('result-count');
 
-// Favorites state
+// Favorites state - stored by circuit ID
 let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]'));
+
+console.log('Loaded favorites:', [...favorites]);
 
 // ========== HELPER FUNCTIONS ==========
 
@@ -177,7 +179,7 @@ async function loadMoreCircuits(reset = false) {
         let circuits = [];
         
         if (isLocalhost) {
-            // Use API when running locally
+            // Use API when running locally - public endpoint (excludes ignored circuits)
             const params = new URLSearchParams({
                 page: currentPage,
                 limit: 20,
@@ -211,7 +213,7 @@ async function loadMoreCircuits(reset = false) {
             // Apply filters
             let filtered = [...allCircuitsCache];
             
-            // Filter out ignored circuits (they won't show on public site)
+            // Filter out ignored circuits
             filtered = filtered.filter(c => !c.ignored);
             
             // Search filter
@@ -256,8 +258,8 @@ async function loadMoreCircuits(reset = false) {
             const start = (currentPage - 1) * 20;
             
             // Shuffle before pagination for random order on every page load
-            const shuffled = shuffleArray(filtered);
-            circuits = shuffled.slice(start, start + 20);
+            filtered = shuffleArray(filtered);
+            circuits = filtered.slice(start, start + 20);
             hasMore = currentPage < totalPages;
         }
         
@@ -355,6 +357,7 @@ function renderCircuitsList(circuits, append = false) {
         resultsGrid.innerHTML = html;
     }
     
+    // Attach favorite event listeners
     document.querySelectorAll('.star-btn').forEach(btn => {
         btn.removeEventListener('click', toggleFavorite);
         btn.addEventListener('click', toggleFavorite);
@@ -368,21 +371,26 @@ function toggleFavorite(e) {
     const id = parseInt(btn.dataset.id);
     const icon = btn.querySelector('i');
     
+    console.log('Toggling favorite for circuit ID:', id);
+    
     if (favorites.has(id)) {
         favorites.delete(id);
         icon.classList.remove('fas');
         icon.classList.add('far');
         btn.classList.remove('starred');
+        console.log('Removed from favorites. New favorites:', [...favorites]);
     } else {
         favorites.add(id);
         icon.classList.remove('far');
         icon.classList.add('fas');
         btn.classList.add('starred');
+        console.log('Added to favorites. New favorites:', [...favorites]);
     }
     
     localStorage.setItem('circuitScoutFavorites', JSON.stringify([...favorites]));
     updateFavFilterButton();
     
+    // If favorites filter is active, reload to show/hide circuits
     if (favFilterBtn && favFilterBtn.classList.contains('active')) {
         resetAndReload();
     }
@@ -440,6 +448,8 @@ async function loadFilterOptions() {
         } else {
             if (!allCircuitsCache) {
                 allCircuitsCache = await loadCircuitsFromJSON();
+                // Filter out ignored circuits for filter options too
+                allCircuitsCache = allCircuitsCache.filter(c => !c.ignored);
             }
             types = [...new Set(allCircuitsCache.map(c => c.type).filter(t => t))];
             difficulties = [...new Set(allCircuitsCache.map(c => c.difficulty).filter(d => d))];
