@@ -88,11 +88,11 @@ function initTheme() {
     if (savedTheme === 'light-mode') {
         document.body.classList.remove('dark-mode');
         document.body.classList.add('light-mode');
-        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
     } else {
         document.body.classList.add('dark-mode');
         document.body.classList.remove('light-mode');
-        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
     }
 }
 
@@ -101,12 +101,12 @@ function toggleTheme() {
         document.body.classList.remove('dark-mode');
         document.body.classList.add('light-mode');
         localStorage.setItem('theme', 'light-mode');
-        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
     } else {
         document.body.classList.remove('light-mode');
         document.body.classList.add('dark-mode');
         localStorage.setItem('theme', 'dark-mode');
-        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+        if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
     }
 }
 
