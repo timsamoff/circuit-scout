@@ -53,7 +53,15 @@ const themeToggle = document.getElementById('theme-toggle');
 const resultCountSpan = document.getElementById('result-count');
 
 // Favorites state - stored by circuit ID (as numbers)
-let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]').map(id => parseInt(id)));
+// Clean up any NaN values when loading
+let rawFavorites = JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]');
+let favorites = new Set(rawFavorites.filter(id => !isNaN(id) && id !== null && id !== undefined).map(id => parseInt(id)));
+
+// If we removed any NaN values, save the cleaned set back to localStorage
+if (rawFavorites.length !== favorites.size) {
+    console.log('Cleaned up NaN values from favorites. Old:', rawFavorites, 'New:', [...favorites]);
+    localStorage.setItem('circuitScoutFavorites', JSON.stringify([...favorites]));
+}
 
 console.log('Loaded favorites:', [...favorites]);
 
@@ -172,14 +180,13 @@ function applyAllFilters(circuits) {
         
         filtered = filtered.filter(c => {
             const circuitId = parseInt(c.id);
-            const isFavorite = favorites.has(circuitId);
-            return isFavorite;
+            // Only include if circuitId is valid and in favorites
+            return !isNaN(circuitId) && favorites.has(circuitId);
         });
         
         console.log('After filter count:', filtered.length);
         
         // When showing favorites, sort them by ID to maintain consistent order
-        // (not random - favorites should be predictable)
         filtered.sort((a, b) => parseInt(a.id) - parseInt(b.id));
     } else {
         // Only shuffle when not filtering by favorites
@@ -263,13 +270,6 @@ async function loadMoreCircuits(reset = false) {
                          filterState.verified === 'unverified' ? 'false' : ''
             });
             
-            // Add favorites filter for API mode
-            if (filterState.favorites) {
-                params.append('favorites', 'true');
-                // Note: This requires server-side support for favorites filtering
-                // For now, we'll handle it client-side even in API mode
-            }
-            
             for (const [key, value] of params.entries()) {
                 if (!value) params.delete(key);
             }
@@ -282,7 +282,10 @@ async function loadMoreCircuits(reset = false) {
             
             // Apply favorites filter client-side for API mode
             if (filterState.favorites) {
-                filteredData = filteredData.filter(c => favorites.has(parseInt(c.id)));
+                filteredData = filteredData.filter(c => {
+                    const circuitId = parseInt(c.id);
+                    return !isNaN(circuitId) && favorites.has(circuitId);
+                });
                 totalResults = filteredData.length;
                 totalPages = Math.ceil(totalResults / 20);
                 
@@ -376,7 +379,7 @@ function renderCircuitsList(circuits, append = false) {
     
     const html = circuits.map(circuit => {
         const circuitId = parseInt(circuit.id);
-        const isStarred = favorites.has(circuitId);
+        const isStarred = !isNaN(circuitId) && favorites.has(circuitId);
         const categoryClass = circuit.category === 'reference' ? 'reference' : 'circuit';
         const verifiedClass = circuit.verified ? 'verified-badge-small' : 'unverified-badge-small';
         
@@ -427,8 +430,13 @@ function toggleFavorite(e) {
     const id = parseInt(btn.dataset.id);
     const icon = btn.querySelector('i');
     
+    // Don't allow adding NaN to favorites
+    if (isNaN(id)) {
+        console.error('Cannot add favorite: Invalid ID (NaN)');
+        return;
+    }
+    
     console.log('Toggling favorite for circuit ID:', id);
-    console.log('Type of ID:', typeof id);
     console.log('Current favorites set:', [...favorites]);
     
     if (favorites.has(id)) {
