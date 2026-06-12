@@ -383,7 +383,7 @@ async function cleanupAllDuplicates() {
 
 async function autoExportToJSON() {
     return new Promise((resolve, reject) => {
-        db.all("SELECT url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, ignored, category FROM circuits ORDER BY created_at DESC", 
+        db.all("SELECT id, url, effect_name, type, parts_count, difficulty, tags, image_url, components, description, verified, ignored, category FROM circuits ORDER BY created_at DESC", 
             async (err, rows) => {
                 if (err) {
                     console.error("Export failed:", err);
@@ -392,6 +392,7 @@ async function autoExportToJSON() {
                 }
                 
                 const exportData = rows.map(row => ({
+                    id: row.id,  // ← ADD THIS LINE - include the database ID
                     url: row.url,
                     effect_name: row.effect_name,
                     type: row.type,

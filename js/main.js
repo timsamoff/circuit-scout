@@ -24,6 +24,7 @@ let isLoading = false;
 let hasMore = true;
 let totalResults = 0;
 let allCircuitsCache = null; // Cache for static JSON mode
+let filteredCircuitsCache = null; // Cache for filtered results
 
 let filterState = {
     search: '',
@@ -51,8 +52,8 @@ const favFilterBtn = document.getElementById('fav-filter-btn');
 const themeToggle = document.getElementById('theme-toggle');
 const resultCountSpan = document.getElementById('result-count');
 
-// Favorites state - stored by circuit ID
-let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]'));
+// Favorites state - stored by circuit ID (as numbers)
+let favorites = new Set(JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]').map(id => parseInt(id)));
 
 console.log('Loaded favorites:', [...favorites]);
 
@@ -125,6 +126,69 @@ function showFavoritesModal() {
     });
 }
 
+// ========== APPLY ALL FILTERS ==========
+function applyAllFilters(circuits) {
+    let filtered = [...circuits];
+    
+    // Filter out ignored circuits
+    filtered = filtered.filter(c => !c.ignored);
+    
+    // Search filter
+    if (filterState.search) {
+        const searchLower = filterState.search.toLowerCase();
+        filtered = filtered.filter(c => 
+            c.effect_name?.toLowerCase().includes(searchLower) ||
+            c.type?.toLowerCase().includes(searchLower) ||
+            c.tags?.some(t => t.toLowerCase().includes(searchLower))
+        );
+    }
+    
+    // Type filter
+    if (filterState.type) {
+        filtered = filtered.filter(c => c.type === filterState.type);
+    }
+    
+    // Difficulty filter
+    if (filterState.difficulty) {
+        filtered = filtered.filter(c => c.difficulty === filterState.difficulty);
+    }
+    
+    // Category filter
+    if (filterState.category !== 'all') {
+        filtered = filtered.filter(c => c.category === filterState.category);
+    }
+    
+    // Verified filter
+    if (filterState.verified === 'verified') {
+        filtered = filtered.filter(c => c.verified === true);
+    } else if (filterState.verified === 'unverified') {
+        filtered = filtered.filter(c => c.verified === false);
+    }
+    
+    // Favorites filter - ensure ID comparison works
+    if (filterState.favorites) {
+        console.log('Filtering by favorites. Favorites set:', [...favorites]);
+        console.log('Before filter count:', filtered.length);
+        
+        filtered = filtered.filter(c => {
+            const circuitId = parseInt(c.id);
+            const isFavorite = favorites.has(circuitId);
+            return isFavorite;
+        });
+        
+        console.log('After filter count:', filtered.length);
+        
+        // When showing favorites, sort them by ID to maintain consistent order
+        // (not random - favorites should be predictable)
+        filtered.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    } else {
+        // Only shuffle when not filtering by favorites
+        filtered = shuffleArray(filtered);
+    }
+    
+    return filtered;
+}
+
 // ========== LOAD CIRCUITS ==========
 async function loadCircuitsFromJSON() {
     try {
@@ -144,6 +208,13 @@ async function loadCircuitsFromJSON() {
                 if (response.ok) {
                     const data = await response.json();
                     console.log(`Successfully loaded ${data.length} circuits from ${path}`);
+                    
+                    // Debug: Check first few circuits for ID field
+                    if (data.length > 0) {
+                        console.log('Sample circuit from JSON:', data[0]);
+                        console.log('ID type:', typeof data[0].id, 'Value:', data[0].id);
+                    }
+                    
                     return data;
                 } else {
                     lastError = `HTTP ${response.status} for ${path}`;
@@ -169,6 +240,7 @@ async function loadMoreCircuits(reset = false) {
     if (reset) {
         currentPage = 1;
         hasMore = true;
+        filteredCircuitsCache = null; // Clear filter cache on reset
         if (resultsGrid) resultsGrid.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-pulse"></i> Loading circuits...</div>';
         if (loadingTrigger) loadingTrigger.style.display = 'block';
     }
@@ -191,6 +263,13 @@ async function loadMoreCircuits(reset = false) {
                          filterState.verified === 'unverified' ? 'false' : ''
             });
             
+            // Add favorites filter for API mode
+            if (filterState.favorites) {
+                params.append('favorites', 'true');
+                // Note: This requires server-side support for favorites filtering
+                // For now, we'll handle it client-side even in API mode
+            }
+            
             for (const [key, value] of params.entries()) {
                 if (!value) params.delete(key);
             }
@@ -199,67 +278,42 @@ async function loadMoreCircuits(reset = false) {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             
-            // Shuffle circuits for random order on every load
-            circuits = shuffleArray(data.circuits);
-            totalResults = data.total;
-            totalPages = data.totalPages;
-            hasMore = currentPage < totalPages;
+            let filteredData = data.circuits;
+            
+            // Apply favorites filter client-side for API mode
+            if (filterState.favorites) {
+                filteredData = filteredData.filter(c => favorites.has(parseInt(c.id)));
+                totalResults = filteredData.length;
+                totalPages = Math.ceil(totalResults / 20);
+                
+                // Sort favorites by ID
+                filteredData.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+                const start = (currentPage - 1) * 20;
+                circuits = filteredData.slice(start, start + 20);
+                hasMore = currentPage < totalPages;
+            } else {
+                // Shuffle for random order
+                circuits = shuffleArray(filteredData);
+                totalResults = data.total;
+                totalPages = data.totalPages;
+                hasMore = currentPage < totalPages;
+            }
         } else {
             // Use static JSON on GitHub Pages
             if (!allCircuitsCache) {
                 allCircuitsCache = await loadCircuitsFromJSON();
             }
             
-            // Apply filters
-            let filtered = [...allCircuitsCache];
-            
-            // Filter out ignored circuits
-            filtered = filtered.filter(c => !c.ignored);
-            
-            // Search filter
-            if (filterState.search) {
-                const searchLower = filterState.search.toLowerCase();
-                filtered = filtered.filter(c => 
-                    c.effect_name?.toLowerCase().includes(searchLower) ||
-                    c.type?.toLowerCase().includes(searchLower) ||
-                    c.tags?.some(t => t.toLowerCase().includes(searchLower))
-                );
+            // Apply filters and get cached results if available
+            if (!filteredCircuitsCache || reset) {
+                filteredCircuitsCache = applyAllFilters(allCircuitsCache);
+                totalResults = filteredCircuitsCache.length;
+                totalPages = Math.ceil(totalResults / 20);
+                console.log(`Filtered ${totalResults} circuits from ${allCircuitsCache.length} total`);
             }
             
-            // Type filter
-            if (filterState.type) {
-                filtered = filtered.filter(c => c.type === filterState.type);
-            }
-            
-            // Difficulty filter
-            if (filterState.difficulty) {
-                filtered = filtered.filter(c => c.difficulty === filterState.difficulty);
-            }
-            
-            // Category filter
-            if (filterState.category !== 'all') {
-                filtered = filtered.filter(c => c.category === filterState.category);
-            }
-            
-            // Verified filter
-            if (filterState.verified === 'verified') {
-                filtered = filtered.filter(c => c.verified === true);
-            } else if (filterState.verified === 'unverified') {
-                filtered = filtered.filter(c => c.verified === false);
-            }
-            
-            // Favorites filter
-            if (filterState.favorites) {
-                filtered = filtered.filter(c => favorites.has(c.id));
-            }
-            
-            totalResults = filtered.length;
-            totalPages = Math.ceil(totalResults / 20);
             const start = (currentPage - 1) * 20;
-            
-            // Shuffle before pagination for random order on every page load
-            filtered = shuffleArray(filtered);
-            circuits = filtered.slice(start, start + 20);
+            circuits = filteredCircuitsCache.slice(start, start + 20);
             hasMore = currentPage < totalPages;
         }
         
@@ -296,6 +350,7 @@ async function loadMoreCircuits(reset = false) {
 }
 
 function resetAndReload() {
+    filteredCircuitsCache = null; // Clear cache
     loadMoreCircuits(true);
 }
 
@@ -320,7 +375,8 @@ function renderCircuitsList(circuits, append = false) {
     }
     
     const html = circuits.map(circuit => {
-        const isStarred = favorites.has(circuit.id);
+        const circuitId = parseInt(circuit.id);
+        const isStarred = favorites.has(circuitId);
         const categoryClass = circuit.category === 'reference' ? 'reference' : 'circuit';
         const verifiedClass = circuit.verified ? 'verified-badge-small' : 'unverified-badge-small';
         
@@ -372,6 +428,8 @@ function toggleFavorite(e) {
     const icon = btn.querySelector('i');
     
     console.log('Toggling favorite for circuit ID:', id);
+    console.log('Type of ID:', typeof id);
+    console.log('Current favorites set:', [...favorites]);
     
     if (favorites.has(id)) {
         favorites.delete(id);
@@ -392,6 +450,8 @@ function toggleFavorite(e) {
     
     // If favorites filter is active, reload to show/hide circuits
     if (favFilterBtn && favFilterBtn.classList.contains('active')) {
+        console.log('Favorites filter is active, reloading...');
+        filteredCircuitsCache = null; // Clear cache to refresh filtered results
         resetAndReload();
     }
 }
@@ -504,6 +564,7 @@ function toggleFavFilter() {
         filterState.favorites = false;
         favFilterBtn.classList.remove('active');
         favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
+        console.log('Favorites filter turned OFF');
     } else {
         if (favorites.size === 0) {
             showFavoritesModal();
@@ -512,7 +573,9 @@ function toggleFavFilter() {
         filterState.favorites = true;
         favFilterBtn.classList.add('active');
         favFilterBtn.innerHTML = '<i class="fas fa-star"></i> Favorites ON';
+        console.log('Favorites filter turned ON. Favorites:', [...favorites]);
     }
+    filteredCircuitsCache = null; // Clear cache
     resetAndReload();
 }
 
@@ -520,6 +583,7 @@ function toggleFavFilter() {
 if (searchInput) {
     searchInput.addEventListener('input', (e) => {
         filterState.search = e.target.value;
+        filteredCircuitsCache = null; // Clear cache
         resetAndReload();
     });
 }
@@ -527,6 +591,7 @@ if (searchInput) {
 if (typeSelect) {
     typeSelect.addEventListener('change', (e) => {
         filterState.type = e.target.value;
+        filteredCircuitsCache = null; // Clear cache
         resetAndReload();
     });
 }
@@ -534,6 +599,7 @@ if (typeSelect) {
 if (difficultySelect) {
     difficultySelect.addEventListener('change', (e) => {
         filterState.difficulty = e.target.value;
+        filteredCircuitsCache = null; // Clear cache
         resetAndReload();
     });
 }
@@ -565,6 +631,8 @@ if (resetFiltersBtn) {
             favFilterBtn.classList.remove('active');
             favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
         }
+        filteredCircuitsCache = null; // Clear cache
+        console.log('All filters reset');
         resetAndReload();
     });
 }
