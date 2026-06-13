@@ -1,4 +1,4 @@
-# <img src="dev/cs_icon.png" width="32" height="32" alt="Circuit Scout"> Circuit Scout
+# <img src="dev/icon-192x192.png" width="32" height="32" alt="Circuit Scout"> Circuit Scout
 
 A DIY guitar pedal circuit database and search tool. Scrape, organize, and discover effects pedal layouts from the DIY community.
 
