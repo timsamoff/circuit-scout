@@ -39,6 +39,7 @@ let filterState = {
 const resultsGrid = document.getElementById('results-grid');
 const loadingTrigger = document.getElementById('loading-trigger');
 const searchInput = document.getElementById('search-input');
+const clearSearchBtn = document.getElementById('clear-search');
 const typeSelect = document.getElementById('type-select');
 const difficultySelect = document.getElementById('difficulty-select');
 const categoryAllBtn = document.getElementById('category-all-btn');
@@ -64,6 +65,39 @@ if (rawFavorites.length !== favorites.size) {
 }
 
 console.log('Loaded favorites:', [...favorites]);
+
+// ========== CLEAR SEARCH BUTTON ==========
+function initClearSearchButton() {
+    if (!clearSearchBtn) return;
+    
+    const updateClearButtonVisibility = () => {
+        if (searchInput && searchInput.value.length > 0) {
+            clearSearchBtn.classList.remove('hidden');
+        } else {
+            clearSearchBtn.classList.add('hidden');
+        }
+    };
+    
+    // Initial visibility
+    updateClearButtonVisibility();
+    
+    // Listen for input changes
+    if (searchInput) {
+        searchInput.addEventListener('input', updateClearButtonVisibility);
+    }
+    
+    // Clear button click handler
+    clearSearchBtn.addEventListener('click', () => {
+        if (searchInput) {
+            searchInput.value = '';
+            filterState.search = '';
+            filteredCircuitsCache = null; // Clear cache
+            updateClearButtonVisibility();
+            resetAndReload();
+            searchInput.focus();
+        }
+    });
+}
 
 // ========== HELPER FUNCTIONS ==========
 
@@ -658,3 +692,4 @@ initTheme();
 loadFilterOptions();
 setupInfiniteScroll();
 resetAndReload();
+initClearSearchButton();

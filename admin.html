@@ -60,7 +60,12 @@
                 <div class="filter-sidebar">
                     <div class="filter-group">
                         <label for="admin-search-input" class="filter-label"><i class="fas fa-search"></i> Search</label>
-                        <input type="text" id="admin-search-input" class="filter-input" placeholder="Circuit name, tag, or keyword...">
+                        <div class="search-wrapper">
+                            <input type="text" id="admin-search-input" class="filter-input" placeholder="Circuit name, tag, or keyword...">
+                            <button type="button" class="search-clear-btn" id="admin-clear-search" aria-label="Clear search">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="filter-group">

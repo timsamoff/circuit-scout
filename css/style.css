@@ -545,6 +545,77 @@ body {
     flex-wrap: wrap;
 }
 
+/* Search wrapper with clear button */
+.search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.search-wrapper .filter-input {
+    width: 100%;
+    padding-right: 2.8rem;
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+    z-index: 2;
+}
+
+.search-clear-btn i,
+.search-clear-btn .fas,
+.search-clear-btn .fa-times-circle {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.search-clear-btn:hover {
+    color: var(--accent-cyan);
+    background: rgba(var(--accent-cyan-rgb), 0.15);
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+    border-radius: 50%;
+}
+
+.search-clear-btn.hidden {
+    display: none;
+}
+
+/* Light mode specific */
+body.light-mode .search-clear-btn {
+    color: var(--text-secondary);
+}
+
+body.light-mode .search-clear-btn:hover {
+    background: rgba(var(--accent-blue-rgb), 0.15);
+}
+
+/* Light mode specific */
+body.light-mode .search-clear-btn {
+    color: var(--text-secondary);
+}
+
+body.light-mode .search-clear-btn:hover {
+    background: rgba(var(--accent-blue-rgb), 0.15);
+}
+
 /* ============================================================================
    RESULTS AREA
    ============================================================================ */

@@ -35,6 +35,7 @@ let filterState = {
 const circuitsContainer = document.getElementById('admin-circuits-list');
 const loadingTrigger = document.getElementById('admin-loading-trigger');
 const searchInput = document.getElementById('admin-search-input');
+const clearSearchBtn = document.getElementById('admin-clear-search');
 const typeSelect = document.getElementById('admin-type-select');
 const difficultySelect = document.getElementById('admin-difficulty-select');
 const categoryAllBtn = document.getElementById('admin-category-all-btn');
@@ -44,6 +45,38 @@ const verifiedAllBtn = document.getElementById('admin-verified-all-btn');
 const verifiedOnlyBtn = document.getElementById('admin-verified-only-btn');
 const unverifiedOnlyBtn = document.getElementById('admin-unverified-only-btn');
 const resetFiltersBtn = document.getElementById('admin-reset-filters');
+
+// ========== CLEAR SEARCH BUTTON ==========
+function initClearSearchButton() {
+    if (!clearSearchBtn) return;
+    
+    const updateClearButtonVisibility = () => {
+        if (searchInput && searchInput.value.length > 0) {
+            clearSearchBtn.classList.remove('hidden');
+        } else {
+            clearSearchBtn.classList.add('hidden');
+        }
+    };
+    
+    // Initial visibility
+    updateClearButtonVisibility();
+    
+    // Listen for input changes
+    if (searchInput) {
+        searchInput.addEventListener('input', updateClearButtonVisibility);
+    }
+    
+    // Clear button click handler
+    clearSearchBtn.addEventListener('click', () => {
+        if (searchInput) {
+            searchInput.value = '';
+            filterState.search = '';
+            updateClearButtonVisibility();
+            resetAndReload();
+            searchInput.focus();
+        }
+    });
+}
 
 // ========== SCRAPER STATUS POLLING ==========
 async function checkScraperStatus() {
@@ -938,5 +971,6 @@ loadStaticSites();
 initCollapsible();
 setupInfiniteScroll();
 resetAndReload();
+initClearSearchButton();
 
 startStatusPolling();
