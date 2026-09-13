@@ -67,11 +67,11 @@ These are the design/token system for the Design & Code Quality Audit's Part 0/P
 
 - `AGENTS.md`: not found.
 - `README.md`: **exists** (project root) — feature overview, license badge/link, icon.
-- `LICENSE`: **exists** (root) — full GPL-3.0 text. Note: this contradicts `package.json`'s `"license": "MIT"` field — flagging as a discrepancy for the user's awareness, not resolving it here since it's outside this discovery prompt's scope.
+- `LICENSE`: **exists** (root). Originally contained GPL-3.0 text while `package.json` declared `"license": "MIT"` — a real conflict, resolved with the user: **MIT is correct**. `LICENSE` now contains MIT text and the README's license section was updated to match; `package.json` was already correct and needed no change.
 - `.gitignore`: **exists** — covers `node_modules/`, `package-lock.json` (ignored despite being present and tracked — worth flagging as a possible inconsistency), `circuits.db`, `*.db-journal`, `.env*`, logs, OS/editor cruft. Explicit comment notes `data/circuits.json` is deliberately NOT ignored (needed for GitHub Pages).
 - `sentinel-notes/`: not found.
 - `scratch/`: not found.
-- `production_notes/`: not found (user's usual habit per global CLAUDE.md, but not present in this project yet).
+- `sentinel-notes/`: not found yet (this is Sentinel's current convention for this project; not treating `production_notes/` as relevant here).
 - `Sentinel/`: exists — contains this prompt and its siblings (00–03) plus a Sentinel README. This is the audit toolkit itself, not project documentation.
 
 ## Existing design documentation
