@@ -28,6 +28,7 @@ desktop.ini
 # Sentinel audit scaffolding (local-only per project preference)
 CLAUDE.md
 sentinel-notes/
+Sentinel/
 
 # Scratch/throwaway scripts
 scratch/
