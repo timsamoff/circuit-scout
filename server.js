@@ -392,7 +392,7 @@ async function autoExportToJSON() {
                 }
                 
                 const exportData = rows.map(row => ({
-                    id: row.id,  // ← ADD THIS LINE - include the database ID
+                    id: row.id,
                     url: row.url,
                     effect_name: row.effect_name,
                     type: row.type,

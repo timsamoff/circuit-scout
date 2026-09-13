@@ -53,8 +53,7 @@ const favFilterBtn = document.getElementById('fav-filter-btn');
 const themeToggle = document.getElementById('theme-toggle');
 const resultCountSpan = document.getElementById('result-count');
 
-// Favorites state - stored by circuit ID (as numbers)
-// Clean up any NaN values when loading
+// Favorites are stored by circuit ID; older saved data could contain NaN, so filter those out
 let rawFavorites = JSON.parse(localStorage.getItem('circuitScoutFavorites') || '[]');
 let favorites = new Set(rawFavorites.filter(id => !isNaN(id) && id !== null && id !== undefined).map(id => parseInt(id)));
 
@@ -77,21 +76,18 @@ function initClearSearchButton() {
             clearSearchBtn.classList.add('hidden');
         }
     };
-    
-    // Initial visibility
+
     updateClearButtonVisibility();
-    
-    // Listen for input changes
+
     if (searchInput) {
         searchInput.addEventListener('input', updateClearButtonVisibility);
     }
-    
-    // Clear button click handler
+
     clearSearchBtn.addEventListener('click', () => {
         if (searchInput) {
             searchInput.value = '';
             filterState.search = '';
-            filteredCircuitsCache = null; // Clear cache
+            filteredCircuitsCache = null;
             updateClearButtonVisibility();
             resetAndReload();
             searchInput.focus();
@@ -214,16 +210,13 @@ function applyAllFilters(circuits) {
         
         filtered = filtered.filter(c => {
             const circuitId = parseInt(c.id);
-            // Only include if circuitId is valid and in favorites
             return !isNaN(circuitId) && favorites.has(circuitId);
         });
-        
+
         console.log('After filter count:', filtered.length);
-        
-        // When showing favorites, sort them by ID to maintain consistent order
+
         filtered.sort((a, b) => parseInt(a.id) - parseInt(b.id));
     } else {
-        // Only shuffle when not filtering by favorites
         filtered = shuffleArray(filtered);
     }
     
@@ -250,7 +243,6 @@ async function loadCircuitsFromJSON() {
                     const data = await response.json();
                     console.log(`Successfully loaded ${data.length} circuits from ${path}`);
                     
-                    // Debug: Check first few circuits for ID field
                     if (data.length > 0) {
                         console.log('Sample circuit from JSON:', data[0]);
                         console.log('ID type:', typeof data[0].id, 'Value:', data[0].id);
@@ -387,7 +379,7 @@ async function loadMoreCircuits(reset = false) {
 }
 
 function resetAndReload() {
-    filteredCircuitsCache = null; // Clear cache
+    filteredCircuitsCache = null;
     loadMoreCircuits(true);
 }
 
@@ -493,7 +485,7 @@ function toggleFavorite(e) {
     // If favorites filter is active, reload to show/hide circuits
     if (favFilterBtn && favFilterBtn.classList.contains('active')) {
         console.log('Favorites filter is active, reloading...');
-        filteredCircuitsCache = null; // Clear cache to refresh filtered results
+        filteredCircuitsCache = null;
         resetAndReload();
     }
 }
@@ -617,7 +609,7 @@ function toggleFavFilter() {
         favFilterBtn.innerHTML = '<i class="fas fa-star"></i> Favorites ON';
         console.log('Favorites filter turned ON. Favorites:', [...favorites]);
     }
-    filteredCircuitsCache = null; // Clear cache
+    filteredCircuitsCache = null;
     resetAndReload();
 }
 
@@ -625,7 +617,7 @@ function toggleFavFilter() {
 if (searchInput) {
     searchInput.addEventListener('input', (e) => {
         filterState.search = e.target.value;
-        filteredCircuitsCache = null; // Clear cache
+        filteredCircuitsCache = null;
         resetAndReload();
     });
 }
@@ -633,7 +625,7 @@ if (searchInput) {
 if (typeSelect) {
     typeSelect.addEventListener('change', (e) => {
         filterState.type = e.target.value;
-        filteredCircuitsCache = null; // Clear cache
+        filteredCircuitsCache = null;
         resetAndReload();
     });
 }
@@ -641,7 +633,7 @@ if (typeSelect) {
 if (difficultySelect) {
     difficultySelect.addEventListener('change', (e) => {
         filterState.difficulty = e.target.value;
-        filteredCircuitsCache = null; // Clear cache
+        filteredCircuitsCache = null;
         resetAndReload();
     });
 }
@@ -673,7 +665,7 @@ if (resetFiltersBtn) {
             favFilterBtn.classList.remove('active');
             favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
         }
-        filteredCircuitsCache = null; // Clear cache
+        filteredCircuitsCache = null;
         console.log('All filters reset');
         resetAndReload();
     });

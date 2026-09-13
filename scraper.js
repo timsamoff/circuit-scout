@@ -197,7 +197,6 @@ async function scrapeStaticProjectPage(pageUrl) {
         
         const $ = cheerio.load(response.data);
         
-        // Remove script and style elements
         $('script, style').remove();
         
         // Extract title (try various common patterns)
@@ -552,11 +551,10 @@ async function scrapeStaticHtmlSource(feed, db) {
     
     console.log(`   📊 Static scrape complete: +${added} new, ${skipped} duplicates`);
     
-    // Update last_scraped
     await new Promise((resolve) => {
         db.run("UPDATE rss_feeds SET last_scraped = CURRENT_TIMESTAMP WHERE id = ?", [feed.id], () => resolve());
     });
-    
+
     return { added, skipped };
 }
 

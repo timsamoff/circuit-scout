@@ -1,4 +1,3 @@
-// Save as fix-duplicates.js and run with: node fix-duplicates.js
 import sqlite3 from 'sqlite3';
 import fs from 'fs/promises';
 

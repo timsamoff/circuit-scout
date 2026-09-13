@@ -58,15 +58,12 @@ function initClearSearchButton() {
         }
     };
     
-    // Initial visibility
     updateClearButtonVisibility();
-    
-    // Listen for input changes
+
     if (searchInput) {
         searchInput.addEventListener('input', updateClearButtonVisibility);
     }
-    
-    // Clear button click handler
+
     clearSearchBtn.addEventListener('click', () => {
         if (searchInput) {
             searchInput.value = '';
