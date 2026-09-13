@@ -24,3 +24,10 @@ desktop.ini
 *.swp
 
 # Note: data/circuits.json is NOT ignored - it needs to be committed for GitHub Pages
+
+# Sentinel audit scaffolding (local-only per project preference)
+CLAUDE.md
+sentinel-notes/
+
+# Scratch/throwaway scripts
+scratch/
