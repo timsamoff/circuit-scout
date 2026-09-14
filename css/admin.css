@@ -365,7 +365,7 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
     gap: 0.5rem;
 }
 
-.admin-circuit-info h4 {
+.admin-circuit-info h3 {
     font-size: 0.875rem;
     margin-bottom: 0.25rem;
 }
@@ -428,7 +428,7 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
 }
 
 .loading-spinner {
-    color: var(--text-secondary);
+    color: var(--text-muted);
     font-size: 0.8rem;
 }
 
@@ -438,6 +438,8 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
 
 .loading { text-align: center; padding: 2rem; color: var(--text-muted); }
 .empty { text-align: center; padding: 1rem; color: var(--text-muted); }
+.admin-error { text-align: center; padding: 2rem; color: var(--danger); }
+.admin-error i { margin-right: 0.5rem; }
 
 /* Scraper Status Bar */
 .scraper-status-bar {
@@ -647,4 +649,16 @@ body { font-family: 'Inter', sans-serif; background: var(--admin-bg); color: var
 
 .filter-select option:hover {
     background: var(--accent-cyan);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent-cyan);
+    outline-offset: 2px;
 }

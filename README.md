@@ -5,7 +5,7 @@ A DIY guitar pedal circuit database and search tool. Scrape, organize, and disco
 ## ✨ Features
 
 - **Multi-source scraping** - RSS/Atom feeds, sitemaps, and static HTML listings
-- **Smart detection** - Automatically identifies effect types, difficulty, and components
+- **Smart detection** - Automatically identifies effect types and difficulty from scraped content; component lists are added manually
 - **Admin dashboard** - Manage feeds, edit circuits, and control what gets scraped
 - **Public interface** - Search, filter, and favorite circuits with dark/light mode
 - **Ignore system** - Flag circuits to prevent re-adding during future scrapes

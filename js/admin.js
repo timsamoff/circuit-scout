@@ -200,7 +200,7 @@ async function loadMoreCircuits(reset = false) {
     } catch (error) {
         console.error('Failed to load circuits:', error);
         if (circuitsContainer && reset) {
-            circuitsContainer.innerHTML = '<div class="loading">Error loading circuits. Make sure the server is running.</div>';
+            circuitsContainer.innerHTML = '<div class="admin-error"><i class="fas fa-exclamation-triangle"></i>Error loading circuits. Make sure the server is running.</div>';
         }
     } finally {
         isLoading = false;
@@ -251,7 +251,7 @@ function renderCircuitsList(circuits, append = false) {
         return `
         <div class="admin-circuit-item" data-id="${circuit.id}">
             <div class="admin-circuit-info">
-                <h4>${escapeHtml(circuit.effect_name || 'Untitled')} ${categoryBadge} ${verificationBadge} ${ignoredBadge}</h4>
+                <h3>${escapeHtml(circuit.effect_name || 'Untitled')} ${categoryBadge} ${verificationBadge} ${ignoredBadge}</h3>
                 <p>${escapeHtml(circuit.type || 'No type')} | ${circuit.parts_count || '?'} parts | ${circuit.difficulty || 'Not set'}</p>
                 <small>${circuit.url ? escapeHtml(circuit.url.substring(0, 60)) + '...' : ''}</small>
             </div>
