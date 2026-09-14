@@ -20,24 +20,24 @@
     --admin-bg: #0a1a24;
     --admin-surface: #122c3b;
     --admin-card: #1a3a4f;
-    --accent-cyan: #2dd4bf;
-    --accent-cyan-rgb: 45, 212, 191;
-    --accent-blue: #0ea5e9;
-    --accent-teal: #14b8a6;
+    --accent-cyan: #38a89d;
+    --accent-cyan-rgb: 56, 168, 157;
+    --accent-blue: #4a90b8;
+    --accent-teal: #2d8577;
     --text-light: #e8f4f8;
     --text-muted: #94a3b8;
     --border: #2a4a63;
-    --border-glow: rgba(45, 212, 191, 0.3);
+    --border-glow: rgba(var(--accent-cyan-rgb), 0.3);
     --danger: var(--status-danger);
     --input-bg: rgba(0, 0, 0, 0.3);
-    --btn-primary-hover: rgba(45, 212, 191, 0.3);
+    --btn-primary-hover: rgba(var(--accent-cyan-rgb), 0.3);
     --btn-secondary-bg: rgba(255, 255, 255, 0.05);
-    --btn-secondary-hover: rgba(45, 212, 191, 0.15);
+    --btn-secondary-hover: rgba(var(--accent-cyan-rgb), 0.15);
     --feed-item-bg: rgba(0, 0, 0, 0.2);
     --circuit-item-bg: rgba(0, 0, 0, 0.2);
     --filter-btn-bg: rgba(255, 255, 255, 0.05);
-    --filter-btn-hover-bg: rgba(45, 212, 191, 0.15);
-    --filter-btn-active-bg: rgba(45, 212, 191, 0.25);
+    --filter-btn-hover-bg: rgba(var(--accent-cyan-rgb), 0.15);
+    --filter-btn-active-bg: rgba(var(--accent-cyan-rgb), 0.25);
     --modal-overlay-bg: rgba(0, 0, 0, 0.8);
     --modal-border: var(--accent-cyan);
     --modal-btn-cancel-bg: rgba(255, 255, 255, 0.1);
@@ -102,7 +102,6 @@ body { font-family: var(--font-body); background: var(--admin-bg); color: var(--
 /* Filter Sidebar - EXACT MATCH to user page */
 .filter-sidebar {
     background: var(--admin-card);
-    backdrop-filter: blur(8px);
     border-radius: var(--radius-lg);
     padding: var(--spacing-xl);
     border: 1px solid var(--border-glow);
@@ -400,7 +399,7 @@ body { font-family: var(--font-body); background: var(--admin-bg); color: var(--
 .delete-btn { background: var(--danger); color: white; }
 
 .category-badge-small { font-size: var(--font-size-xs); padding: 0.125rem 0.375rem; border-radius: var(--radius-sm); font-weight: 600; margin-left: var(--spacing-sm); }
-.category-badge-small.circuit { background: rgba(45, 212, 191, 0.2); color: var(--accent-cyan); }
+.category-badge-small.circuit { background: rgba(var(--accent-cyan-rgb), 0.2); color: var(--accent-cyan); }
 .category-badge-small.reference { background: rgba(16, 185, 129, 0.2); color: var(--accent-teal); }
 
 .verified-badge-small, .unverified-badge-small {

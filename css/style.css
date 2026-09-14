@@ -40,8 +40,8 @@ body.dark-mode {
     /* Surfaces */
     --surface: #1a3a4f;
     --surface-light: #2a4a63;
-    --surface-card: rgba(26, 58, 79, 0.85);
-    --surface-hero: rgba(10, 26, 36, 0.6);
+    --surface-card: #1a3a4f;
+    --surface-hero: #14303f;
     --surface-overlay: rgba(0, 0, 0, 0.85);
 
     /* Text Colors */
@@ -49,11 +49,11 @@ body.dark-mode {
     --text-secondary: #b8dce8;
 
     /* Accent Colors */
-    --accent-cyan: #2dd4bf;
-    --accent-cyan-rgb: 45, 212, 191;
-    --accent-teal: #14b8a6;
-    --accent-blue: #0ea5e9;
-    --accent-blue-rgb: 14, 165, 233;
+    --accent-cyan: #38a89d;
+    --accent-cyan-rgb: 56, 168, 157;
+    --accent-teal: #2d8577;
+    --accent-blue: #4a90b8;
+    --accent-blue-rgb: 74, 144, 184;
 
     /* Status Colors */
     --status-verified: #34d399;
@@ -61,7 +61,7 @@ body.dark-mode {
 
     /* Difficulty Colors */
     --difficulty-beginner: #34d399;
-    --difficulty-intermediate: #2dd4bf;
+    --difficulty-intermediate: var(--accent-cyan);
     --difficulty-advanced: #fbbf24;
     --difficulty-expert: #f87171;
 
@@ -70,7 +70,7 @@ body.dark-mode {
     --category-reference: var(--accent-teal);
 
     /* Borders & Glows */
-    --border-glow: rgba(45, 212, 191, 0.3);
+    --border-glow: rgba(var(--accent-cyan-rgb), 0.3);
 
     /* Shadows */
     --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -78,21 +78,21 @@ body.dark-mode {
 
     /* Backgrounds - Interactive Elements */
     --bg-theme-toggle: rgba(255, 255, 255, 0.1);
-    --bg-theme-toggle-hover: rgba(45, 212, 191, 0.2);
+    --bg-theme-toggle-hover: rgba(var(--accent-cyan-rgb), 0.2);
     --bg-filter-input: rgba(0, 0, 0, 0.3);
     --bg-filter-btn: rgba(255, 255, 255, 0.05);
-    --bg-filter-btn-hover: rgba(45, 212, 191, 0.15);
-    --bg-filter-btn-active: rgba(45, 212, 191, 0.25);
+    --bg-filter-btn-hover: rgba(var(--accent-cyan-rgb), 0.15);
+    --bg-filter-btn-active: rgba(var(--accent-cyan-rgb), 0.25);
     --bg-btn-secondary: rgba(255, 255, 255, 0.05);
-    --bg-btn-secondary-hover: rgba(45, 212, 191, 0.15);
+    --bg-btn-secondary-hover: rgba(var(--accent-cyan-rgb), 0.15);
     --bg-fav-active: rgba(251, 191, 36, 0.2);
 
     /* Badge Backgrounds */
-    --bg-circuit-type: rgba(14, 165, 233, 0.2);
-    --bg-category-circuit: rgba(45, 212, 191, 0.2);
+    --bg-circuit-type: rgba(var(--accent-blue-rgb), 0.2);
+    --bg-category-circuit: rgba(var(--accent-cyan-rgb), 0.2);
     --bg-category-reference: rgba(16, 185, 129, 0.2);
     --bg-difficulty-beginner: rgba(16, 185, 129, 0.2);
-    --bg-difficulty-intermediate: rgba(45, 212, 191, 0.2);
+    --bg-difficulty-intermediate: rgba(var(--accent-cyan-rgb), 0.2);
     --bg-difficulty-advanced: rgba(245, 158, 11, 0.2);
     --bg-difficulty-expert: rgba(239, 68, 68, 0.2);
     --bg-verified: rgba(16, 185, 129, 0.2);
@@ -111,8 +111,8 @@ body.light-mode {
     /* Surfaces */
     --surface: #f0f9ff;
     --surface-light: #e0f2fe;
-    --surface-card: rgba(255, 255, 255, 0.85);
-    --surface-hero: rgba(255, 255, 255, 0.6);
+    --surface-card: #ffffff;
+    --surface-hero: #ffffff;
     --surface-overlay: rgba(0, 0, 0, 0.85);
     
     /* Text Colors */
@@ -120,11 +120,11 @@ body.light-mode {
     --text-secondary: #075985;
     
     /* Accent Colors */
-    --accent-cyan: #0d9488;
-    --accent-cyan-rgb: 13, 148, 136;
-    --accent-teal: #0f766e;
-    --accent-blue: #0284c7;
-    --accent-blue-rgb: 2, 132, 199;
+    --accent-cyan: #2d7d72;
+    --accent-cyan-rgb: 45, 125, 114;
+    --accent-teal: #256b60;
+    --accent-blue: #3d7a9e;
+    --accent-blue-rgb: 61, 122, 158;
     
     /* Status Colors */
     --status-verified: #10b981;
@@ -132,38 +132,38 @@ body.light-mode {
 
     /* Difficulty Colors */
     --difficulty-beginner: #10b981;
-    --difficulty-intermediate: #0d9488;
+    --difficulty-intermediate: var(--accent-cyan);
     --difficulty-advanced: #f59e0b;
     --difficulty-expert: #ef4444;
-    
+
     /* Category Colors */
     --category-circuit: var(--accent-cyan);
     --category-reference: var(--accent-teal);
-    
+
     /* Borders & Glows */
-    --border-glow: rgba(14, 165, 233, 0.3);
-    
+    --border-glow: rgba(var(--accent-blue-rgb), 0.3);
+
     /* Shadows */
     --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
-    
+
     /* Backgrounds - Interactive Elements */
     --bg-theme-toggle: rgba(0, 0, 0, 0.05);
-    --bg-theme-toggle-hover: rgba(14, 165, 233, 0.2);
+    --bg-theme-toggle-hover: rgba(var(--accent-blue-rgb), 0.2);
     --bg-filter-input: rgba(0, 0, 0, 0.05);
     --bg-filter-btn: rgba(0, 0, 0, 0.05);
-    --bg-filter-btn-hover: rgba(14, 165, 233, 0.15);
-    --bg-filter-btn-active: rgba(14, 165, 233, 0.25);
+    --bg-filter-btn-hover: rgba(var(--accent-blue-rgb), 0.15);
+    --bg-filter-btn-active: rgba(var(--accent-blue-rgb), 0.25);
     --bg-btn-secondary: rgba(0, 0, 0, 0.05);
-    --bg-btn-secondary-hover: rgba(14, 165, 233, 0.15);
+    --bg-btn-secondary-hover: rgba(var(--accent-blue-rgb), 0.15);
     --bg-fav-active: rgba(251, 191, 36, 0.2);
-    
+
     /* Badge Backgrounds */
-    --bg-circuit-type: rgba(2, 132, 199, 0.15);
-    --bg-category-circuit: rgba(13, 148, 136, 0.15);
+    --bg-circuit-type: rgba(var(--accent-blue-rgb), 0.15);
+    --bg-category-circuit: rgba(var(--accent-cyan-rgb), 0.15);
     --bg-category-reference: rgba(16, 185, 129, 0.15);
     --bg-difficulty-beginner: rgba(16, 185, 129, 0.15);
-    --bg-difficulty-intermediate: rgba(13, 148, 136, 0.15);
+    --bg-difficulty-intermediate: rgba(var(--accent-cyan-rgb), 0.15);
     --bg-difficulty-advanced: rgba(245, 158, 11, 0.15);
     --bg-difficulty-expert: rgba(239, 68, 68, 0.15);
     --bg-verified: rgba(16, 185, 129, 0.15);
@@ -197,7 +197,6 @@ body {
 /* Hero Section */
 .hero {
     background: var(--surface-hero);
-    backdrop-filter: blur(12px);
     border-radius: var(--radius-xl);
     padding: var(--spacing-2xl);
     margin-bottom: var(--spacing-2xl);
@@ -277,7 +276,6 @@ body {
     cursor: pointer;
     transition: all var(--transition-base) ease;
     text-decoration: none;
-    backdrop-filter: blur(4px);
 }
 
 .icon-circle-btn i,
@@ -448,7 +446,6 @@ body {
 
 .filters-panel {
     background: var(--surface-card);
-    backdrop-filter: blur(8px);
     border-radius: var(--radius-lg);
     padding: var(--spacing-xl);
     border: 1px solid var(--border-glow);
@@ -594,7 +591,6 @@ body.light-mode .search-clear-btn:hover {
 
 .circuit-card {
     background: var(--surface-card);
-    backdrop-filter: blur(4px);
     border-radius: var(--radius-lg);
     padding: var(--spacing-xl);
     border: 1px solid var(--border-glow);
@@ -902,7 +898,7 @@ body.light-mode .search-clear-btn:hover {
     color: var(--gradient-end);
     border: none;
     padding: 0.6rem 1.8rem;
-    border-radius: 40px;
+    border-radius: var(--radius-xl);
     font-family: inherit;
     font-weight: 600;
     cursor: pointer;
