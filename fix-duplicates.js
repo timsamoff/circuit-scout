@@ -59,6 +59,7 @@ async function fixDuplicates() {
     });
     
     const exportData = remaining.map(row => ({
+        id: row.id,
         url: row.url,
         effect_name: row.effect_name,
         type: row.type,
@@ -69,6 +70,7 @@ async function fixDuplicates() {
         components: row.components ? JSON.parse(row.components) : {},
         description: row.description,
         verified: row.verified === 1,
+        ignored: row.ignored === 1,
         category: row.category || 'circuit'
     }));
     

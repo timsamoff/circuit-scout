@@ -38,8 +38,10 @@ db.all("SELECT * FROM circuits ORDER BY created_at DESC", (err, rows) => {
         difficulty: row.difficulty,
         tags: row.tags ? JSON.parse(row.tags) : [],
         image_url: row.image_url,
+        components: row.components ? JSON.parse(row.components) : {},
         description: row.description,
         verified: row.verified === 1,
+        ignored: row.ignored === 1,
         category: row.category || 'circuit'
     }));
     
