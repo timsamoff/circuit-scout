@@ -124,7 +124,13 @@ const FORM_TOUCHPOINTS = ["admin.html", "js/admin.js"];
 
 const FEED_BRANCH_TOUCHPOINTS = ["server.js", "admin.html"];
 
-const DETECTION_LOGIC_FILES = ["server.js", "scraper.js", "fix-titles.js", "fix-descriptions.js"];
+// Effect-type/category/difficulty detection logic is duplicated between
+// server.js's three internal scraping functions and scraper.js. The
+// HTML-entity-decoding duplication this used to also cover (server.js,
+// fix-titles.js, fix-descriptions.js) was consolidated into
+// decode-html-entities.js on 2026-09-14 — those two files no longer have
+// any duplicated logic of their own, so they're no longer watched here.
+const DETECTION_LOGIC_FILES = ["server.js", "scraper.js"];
 
 // Extract the set of object-literal keys used as circuit fields inside a
 // JS object-literal-returning function, by name. This is intentionally a
@@ -244,13 +250,13 @@ function ruleDetectionLogicDrift(changedFiles, read, mode) {
     if (touched.length === 0) return [];
     const untouched = DETECTION_LOGIC_FILES.filter(f => !changedFiles.has(f));
     const sibling = untouched.length > 0
-        ? `check whether ${untouched.join(", ")} need the same fix`
+        ? `check whether ${untouched.join(", ")} ${untouched.length > 1 ? "need" : "needs"} the same fix`
         : `check whether the other copies of this logic need the same fix (all files in this group appear in scope for this run)`;
     return [{
         rule: "detection-logic-drift-warn",
         file: touched[0],
         line: null,
-        message: `${touched.join(", ")} changed. This project has duplicated effect-type/category detection and HTML-entity-decoding logic across ${DETECTION_LOGIC_FILES.join(", ")} (see sentinel-notes/TODO.md: detection-dupe, decode-html-dupe). If this change is to that logic, ${sibling}. Warning only until consolidated.`,
+        message: `${touched.join(", ")} changed. This project has duplicated effect-type/category detection logic across ${DETECTION_LOGIC_FILES.join(", ")} (see sentinel-notes/TODO.md: detection-dupe). If this change is to that logic, ${sibling}. Warning only until consolidated.`,
         key: null,
         advisory: true,
     }];
