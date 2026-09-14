@@ -681,7 +681,12 @@ function main() {
             console.log(`\nsentinel-gate: full scan found NEW blocking violations not present in the recorded baseline.`);
             process.exit(1);
         }
-        console.log("\nsentinel-gate: full scan passed (all blocking violations, if any, are already in the tracked baseline).");
+        // Passed: re-save the baseline to match current findings. This keeps
+        // the baseline a live snapshot rather than a one-time artifact — a
+        // backlog item that gets fixed naturally drops out on the next full
+        // scan, instead of the baseline silently growing stale forever.
+        saveBaseline(blocking.filter(v => v.key).map(v => v.key));
+        console.log("\nsentinel-gate: full scan passed (all blocking violations, if any, are already in the tracked baseline). Baseline updated.");
         process.exit(0);
     }
 
