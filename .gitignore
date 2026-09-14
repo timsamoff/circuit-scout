@@ -32,3 +32,10 @@ Sentinel/
 
 # Scratch/throwaway scripts
 scratch/
+
+# Sentinel gate-check: notes-snapshot.json is a per-run "last observed" cache,
+# not a durable decision, so it's local-only. baseline.json IS committed
+# (not ignored) — it records the deliberate "these violations were already
+# known when the check went blocking" decision, and a fresh clone needs it
+# to avoid immediately blocking on the pre-existing backlog.
+sentinel-gate/notes-snapshot.json

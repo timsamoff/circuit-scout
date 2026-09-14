@@ -1,0 +1,6 @@
+#!/bin/sh
+# Sentinel gate check — enforces this project's commit-message convention
+# (terse single-line subject, bullet-only body, no attribution trailers).
+# See CLAUDE.md's "Commit conventions" section and INTEGRATION_CHECKLIST.md.
+node "$(git rev-parse --show-toplevel)/sentinel-gate/check.js" --commit-msg-file "$1"
+exit $?

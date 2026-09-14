@@ -1,0 +1,7 @@
+#!/bin/sh
+# Sentinel gate check — runs the diff-scoped checks against staged content
+# before allowing a commit. Source: sentinel-gate/check.js (tracked in git,
+# unlike .git/hooks/ itself). See INTEGRATION_CHECKLIST.md for what these
+# checks do and why.
+node "$(git rev-parse --show-toplevel)/sentinel-gate/check.js" --diff
+exit $?

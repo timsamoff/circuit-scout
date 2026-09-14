@@ -1,0 +1,7 @@
+#!/bin/sh
+# Sentinel gate check — full-repo scan, runs before push rather than every
+# commit (a full scan is slower than the diff-scoped pre-commit check, and
+# push happens far less often). Also implicitly confirms this hook itself
+# is still installed and executable, since it can only run if it is.
+node "$(git rev-parse --show-toplevel)/sentinel-gate/check.js" --full
+exit $?
