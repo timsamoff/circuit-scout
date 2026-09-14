@@ -1,0 +1,107 @@
+/*
+ * ============================================================================
+ * Circuit Scout - Shared Design Tokens
+ *
+ * Canonical spacing, type, radius, and transition scale shared by both
+ * surfaces (public site and admin dashboard). Colors that vary by theme
+ * (light/dark mode) stay in style.css, since only the public site has a
+ * light mode — admin.css is intentionally dark-only and layers its own
+ * admin-specific tokens (--admin-bg, --admin-surface, etc.) on top of these.
+ *
+ * @license MIT
+ * ============================================================================
+ */
+
+:root {
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --radius-round: 32px;
+    --radius-circle: 50%;
+
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+    --spacing-3xl: 3rem;
+
+    /* Typography */
+    --font-body: 'Inter', sans-serif;
+    --font-size-xs: 0.688rem;
+    --font-size-sm: 0.75rem;
+    --font-size-md: 0.875rem;
+    --font-size-lg: 1rem;
+    --font-size-xl: 1.125rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 2rem;
+    --font-size-4xl: 3.5rem;
+
+    /* Transitions */
+    --transition-fast: 0.1s;
+    --transition-base: 0.2s;
+    --transition-slow: 0.25s;
+    --transition-theme: 0.3s;
+
+    /* Shared status colors — these are the values style.css's own comment
+       already marked "unchanged, semantic" between light and dark mode, and
+       are also the values admin.css (dark-only) already used directly. */
+    --status-danger: #ef4444;
+    --status-danger-rgb: 239, 68, 68;
+    --status-star: #fbbf24;
+}
+
+/* ============================================================================
+   SHARED COMPONENT: search-input-with-clear-button
+   ============================================================================
+   The markup for this component (.search-wrapper > .filter-input +
+   .search-clear-btn) is duplicated between index.html and admin.html — see
+   the HTML comment at each site pointing here. This project has no
+   build/bundling step, so there's no way to share the HTML itself without
+   introducing new tooling; this block is the shared *styling* half of the
+   fix, per sentinel-notes/search-clear-button-markup-design-brief.md.
+
+   Style contract: the clear button is an absolutely-positioned circle
+   vertically centered inside its wrapper, right-aligned with a small inset,
+   sized to comfortably clear the input's own right padding. Each surface
+   still sets its own color/size specifics locally (style.css uses a fixed
+   26px button and --text-secondary; admin.css uses --spacing-xs padding and
+   --text-muted, matching each surface's own token vocabulary) — only the
+   positioning/behavior contract lives here. */
+.search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.search-clear-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    z-index: 2;
+}
+
+.search-clear-btn:hover {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.search-clear-btn.hidden {
+    display: none;
+}
+
+/* Accent colors (cyan/teal/blue) are NOT included here — they genuinely
+   differ between style.css's dark mode and light mode (e.g. --accent-cyan
+   is #2dd4bf in dark mode, #0d9488 in light mode). admin.css is dark-only,
+   so it keeps its own copy of the dark-mode accent values below rather than
+   referencing a "shared" token that would actually only be half-shared. */

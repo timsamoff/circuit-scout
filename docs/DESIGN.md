@@ -60,17 +60,13 @@ This detection logic is implemented independently in four places: three function
 
 ### Design tokens
 
-The two stylesheets maintain separate token systems rather than sharing one:
+`css/tokens.css` holds the shared spacing scale, type scale, radius scale, transition durations, and status colors that don't vary by theme, and is loaded before both `style.css` and `admin.css` in their respective HTML files. Colors that genuinely differ between light and dark mode (accent cyan/teal/blue, verified/unverified status colors) stay in `style.css`'s `:root` (dark) and `body.light-mode` (light) blocks, since only the public site has a light mode.
 
-- `css/style.css` defines a complete light/dark theme through CSS custom properties — a `:root` block holding dark-mode defaults, overridden by a `body.light-mode` block — covering spacing, font sizes, radii, colors, shadows, and transitions.
-- `css/admin.css` defines a separate, single-mode (dark-only) token set with different variable names, no light mode, and largely untokenized `rem`/`px` values outside its own small set of custom properties.
-
-The admin dashboard has no theme toggle and does not consume the public site's token vocabulary, even where the visual result — surface colors, card shapes, accent hues — is clearly meant to echo it.
+`css/admin.css` is intentionally dark-only — it has no theme toggle — and keeps its own local copy of the dark-mode accent colors (identical hex values to `style.css`'s dark mode) plus admin-specific tokens with no public-site equivalent (`--admin-bg`, `--admin-surface`, `--feed-item-bg`, and similar), layered on top of the shared scale from `tokens.css`.
 
 ## Known structural gaps
 
-- **Duplicated scraping and parsing logic.** `server.js` contains its own copies of feed-entry processing, effect-type detection, and HTML-entity decoding that substantially overlap with logic in `scraper.js`. `scraper.js`'s exported `runScraper` and `scrapeSingleFeed` functions ignore their `feedId` and `db` arguments and unconditionally re-run the full scrape across every enabled feed. Whether these exports are still an active code path, or a leftover from an earlier structure, is not evidenced in the code itself — `server.js` scrapes feeds through its own inline implementation and only imports `scrapeStaticListing` from `scraper.js`.
-- **Standalone maintenance scripts.** `fix-duplicates.js`, `fix-titles.js`, `fix-descriptions.js`, and `force-export.js` each reimplement a piece of logic that also exists in `server.js` — duplicate removal, HTML-entity decoding, JSON export — rather than calling into a shared function. Each reads as having been written to solve one specific past data problem rather than as a permanent part of the toolset.
-- **Two independently maintained design-token sets**, described above, rather than one shared source consumed by both surfaces.
+- **Duplicated effect-type/category detection logic.** `server.js` contains its own copies of this detection logic (in its scraping functions) that overlap with `scraper.js`'s own copy. `scraper.js`'s exported `runScraper` and `scrapeSingleFeed` functions were removed (2026-09-14) after confirming they were dead code — `server.js` never called into them, having its own complete, separately-maintained scraping pipeline. `scraper.js` now contains only the static-HTML scraping logic `server.js` actually imports (`scrapeStaticListing`).
+- **Standalone maintenance scripts.** `fix-duplicates.js`, `force-export.js`, and `compare-db-json.js` reimplement a piece of logic that also exists in `server.js` (duplicate removal, JSON export) rather than calling into a shared function. Each reads as having been written to solve one specific past data problem rather than as a permanent part of the toolset. (HTML-entity decoding, previously duplicated the same way across `server.js`/`fix-titles.js`/`fix-descriptions.js`, was consolidated into a shared `decode-html-entities.js` module on 2026-09-14.)
 
 These are described as the current state of the system, not as defects requiring correction on any particular timeline.

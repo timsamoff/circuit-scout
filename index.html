@@ -34,6 +34,7 @@
     <meta name="msapplication-TileColor" content="#0f2b3d">
     
     <title>Circuit Scout | DIY Effects Pedal Database</title>
+    <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,6 +81,7 @@
             <aside class="filters-panel" aria-label="Search filters">
                 <div class="filter-group">
                     <label for="search-input" class="filter-label"><i class="fas fa-search"></i> Search</label>
+                    <!-- This search-wrapper/clear-button markup is duplicated in admin.html (search-wrapper there); keep both in sync when editing. Shared styling contract: css/tokens.css. -->
                     <div class="search-wrapper">
                         <input type="text" id="search-input" class="filter-input" placeholder="Circuit name, tag, or keyword...">
                         <button type="button" class="search-clear-btn" id="clear-search" aria-label="Clear search">

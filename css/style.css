@@ -25,7 +25,10 @@
 
 /* ============================================================================
    CSS CUSTOM PROPERTIES (VARIABLES)
-   ============================================================================ */
+   ============================================================================
+   Shared spacing/type/radius/transition scale and shared accent/status colors
+   live in tokens.css (loaded before this file). Only values that vary by
+   theme (dark vs. light mode) are declared here. */
 
 /* Dark Mode (Default) */
 :root,
@@ -33,49 +36,46 @@ body.dark-mode {
     /* Gradients */
     --gradient-start: #0f2b3d;
     --gradient-end: #0a1a24;
-    
+
     /* Surfaces */
     --surface: #1a3a4f;
     --surface-light: #2a4a63;
     --surface-card: rgba(26, 58, 79, 0.85);
     --surface-hero: rgba(10, 26, 36, 0.6);
     --surface-overlay: rgba(0, 0, 0, 0.85);
-    
+
     /* Text Colors */
     --text-primary: #e8f4f8;
     --text-secondary: #b8dce8;
-    
+
     /* Accent Colors */
     --accent-cyan: #2dd4bf;
     --accent-cyan-rgb: 45, 212, 191;
     --accent-teal: #14b8a6;
     --accent-blue: #0ea5e9;
     --accent-blue-rgb: 14, 165, 233;
-    
+
     /* Status Colors */
     --status-verified: #34d399;
     --status-unverified: #fbbf24;
-    --status-danger: #ef4444;
-    --status-danger-rgb: 239, 68, 68;
-    --status-star: #fbbf24;
-    
+
     /* Difficulty Colors */
     --difficulty-beginner: #34d399;
     --difficulty-intermediate: #2dd4bf;
     --difficulty-advanced: #fbbf24;
     --difficulty-expert: #f87171;
-    
+
     /* Category Colors */
     --category-circuit: var(--accent-cyan);
     --category-reference: var(--accent-teal);
-    
+
     /* Borders & Glows */
     --border-glow: rgba(45, 212, 191, 0.3);
-    
+
     /* Shadows */
     --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-    
+
     /* Backgrounds - Interactive Elements */
     --bg-theme-toggle: rgba(255, 255, 255, 0.1);
     --bg-theme-toggle-hover: rgba(45, 212, 191, 0.2);
@@ -86,7 +86,7 @@ body.dark-mode {
     --bg-btn-secondary: rgba(255, 255, 255, 0.05);
     --bg-btn-secondary-hover: rgba(45, 212, 191, 0.15);
     --bg-fav-active: rgba(251, 191, 36, 0.2);
-    
+
     /* Badge Backgrounds */
     --bg-circuit-type: rgba(14, 165, 233, 0.2);
     --bg-category-circuit: rgba(45, 212, 191, 0.2);
@@ -97,41 +97,7 @@ body.dark-mode {
     --bg-difficulty-expert: rgba(239, 68, 68, 0.2);
     --bg-verified: rgba(16, 185, 129, 0.2);
     --bg-unverified: rgba(245, 158, 11, 0.2);
-    
-    /* Border Radius */
-    --radius-sm: 6px;
-    --radius-md: 12px;
-    --radius-lg: 20px;
-    --radius-xl: 28px;
-    --radius-round: 32px;
-    --radius-circle: 50%;
-    
-    /* Spacing */
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 0.75rem;
-    --spacing-lg: 1rem;
-    --spacing-xl: 1.5rem;
-    --spacing-2xl: 2rem;
-    --spacing-3xl: 3rem;
-    
-    /* Typography */
-    --font-body: 'Inter', sans-serif;
-    --font-size-xs: 0.688rem;
-    --font-size-sm: 0.75rem;
-    --font-size-md: 0.875rem;
-    --font-size-lg: 1rem;
-    --font-size-xl: 1.125rem;
-    --font-size-2xl: 1.5rem;
-    --font-size-3xl: 2rem;
-    --font-size-4xl: 3.5rem;
-    
-    /* Transitions */
-    --transition-fast: 0.1s;
-    --transition-base: 0.2s;
-    --transition-slow: 0.25s;
-    --transition-theme: 0.3s;
-    
+
     /* Z-Indices */
     --z-modal: 10000;
 }
@@ -160,13 +126,10 @@ body.light-mode {
     --accent-blue: #0284c7;
     --accent-blue-rgb: 2, 132, 199;
     
-    /* Status Colors (unchanged, semantic) */
+    /* Status Colors */
     --status-verified: #10b981;
     --status-unverified: #f59e0b;
-    --status-danger: #ef4444;
-    --status-danger-rgb: 239, 68, 68;
-    --status-star: #fbbf24;
-    
+
     /* Difficulty Colors */
     --difficulty-beginner: #10b981;
     --difficulty-intermediate: #0d9488;
@@ -545,37 +508,23 @@ body {
     flex-wrap: wrap;
 }
 
-/* Search wrapper with clear button */
-.search-wrapper {
-    position: relative;
-    width: 100%;
-}
-
+/* Search wrapper with clear button — shared positioning/behavior lives in
+   tokens.css's "search-input-with-clear-button" block (see that file's
+   comment); this is only the public site's own color/size specifics. */
 .search-wrapper .filter-input {
     width: 100%;
     padding-right: 2.8rem;
 }
 
 .search-clear-btn {
-    position: absolute;
     right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
+    color: var(--text-secondary);
     font-size: 1rem;
     width: 26px;
     height: 26px;
     padding: 0;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.2s ease;
-    opacity: 0.7;
-    z-index: 2;
 }
 
 .search-clear-btn i,
@@ -589,13 +538,7 @@ body {
 .search-clear-btn:hover {
     color: var(--accent-cyan);
     background: rgba(var(--accent-cyan-rgb), 0.15);
-    opacity: 1;
-    transform: translateY(-50%) scale(1.1);
     border-radius: 50%;
-}
-
-.search-clear-btn.hidden {
-    display: none;
 }
 
 /* Light mode specific */

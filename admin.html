@@ -13,6 +13,7 @@
     <meta name="msapplication-TileColor" content="#0f2b3d">
     
     <title>Circuit Scout Admin | Content Management</title>
+    <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/admin.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -60,6 +61,7 @@
                 <div class="filter-sidebar">
                     <div class="filter-group">
                         <label for="admin-search-input" class="filter-label"><i class="fas fa-search"></i> Search</label>
+                        <!-- This search-wrapper/clear-button markup is duplicated in index.html (search-wrapper there); keep both in sync when editing. Shared styling contract: css/tokens.css. -->
                         <div class="search-wrapper">
                             <input type="text" id="admin-search-input" class="filter-input" placeholder="Circuit name, tag, or keyword...">
                             <button type="button" class="search-clear-btn" id="admin-clear-search" aria-label="Clear search">
