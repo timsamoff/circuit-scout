@@ -15,11 +15,7 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* Shared spacing/type/radius/transition scale and shared status colors live
-   in tokens.css (loaded before this file). Admin.css is intentionally
-   dark-only, so it keeps its own copy of the dark-mode accent colors
-   (identical to style.css's dark mode) plus every admin-specific token
-   below, rather than referencing a token that would only be half-shared. */
+/* Shared scale lives in tokens.css. Dark-only, so accent colors stay local. */
 :root {
     --admin-bg: #0a1a24;
     --admin-surface: #122c3b;
@@ -515,9 +511,7 @@ body { font-family: var(--font-body); background: var(--admin-bg); color: var(--
     cursor: not-allowed;
 }
 
-/* Search wrapper with clear button — shared positioning/behavior lives in
-   tokens.css's "search-input-with-clear-button" block (see that file's
-   comment); this is only the admin dashboard's own color/size specifics. */
+/* Search wrapper with clear button (positioning/behavior shared via tokens.css) */
 .search-wrapper .filter-input {
     width: 100%;
     padding-right: 2.5rem;

@@ -1,14 +1,15 @@
 /*
  * ============================================================================
  * Circuit Scout - Shared Design Tokens
+ * Version 1.0.0
+ * Designed & Developed by Tim Samoff
  *
- * Canonical spacing, type, radius, and transition scale shared by both
- * surfaces (public site and admin dashboard). Colors that vary by theme
- * (light/dark mode) stay in style.css, since only the public site has a
- * light mode — admin.css is intentionally dark-only and layers its own
- * admin-specific tokens (--admin-bg, --admin-surface, etc.) on top of these.
+ * A DIY guitar pedal circuit database and search tool
+ *
+ * Shared spacing, type, radius, and transition scale for both surfaces
  *
  * @license MIT
+ * @see https://samoff.com/circuit-scout
  * ============================================================================
  */
 
@@ -47,31 +48,15 @@
     --transition-slow: 0.25s;
     --transition-theme: 0.3s;
 
-    /* Shared status colors — these are the values style.css's own comment
-       already marked "unchanged, semantic" between light and dark mode, and
-       are also the values admin.css (dark-only) already used directly. */
+    /* Status colors that don't vary by theme */
     --status-danger: #ef4444;
     --status-danger-rgb: 239, 68, 68;
     --status-star: #fbbf24;
 }
 
-/* ============================================================================
-   SHARED COMPONENT: search-input-with-clear-button
-   ============================================================================
-   The markup for this component (.search-wrapper > .filter-input +
-   .search-clear-btn) is duplicated between index.html and admin.html — see
-   the HTML comment at each site pointing here. This project has no
-   build/bundling step, so there's no way to share the HTML itself without
-   introducing new tooling; this block is the shared *styling* half of the
-   fix, per sentinel-notes/search-clear-button-markup-design-brief.md.
-
-   Style contract: the clear button is an absolutely-positioned circle
-   vertically centered inside its wrapper, right-aligned with a small inset,
-   sized to comfortably clear the input's own right padding. Each surface
-   still sets its own color/size specifics locally (style.css uses a fixed
-   26px button and --text-secondary; admin.css uses --spacing-xs padding and
-   --text-muted, matching each surface's own token vocabulary) — only the
-   positioning/behavior contract lives here. */
+/* Shared search-clear-button positioning/behavior (markup duplicated
+   between index.html and admin.html — see comments there). Each surface
+   sets its own color/size specifics locally. */
 .search-wrapper {
     position: relative;
     width: 100%;
@@ -100,8 +85,5 @@
     display: none;
 }
 
-/* Accent colors (cyan/teal/blue) are NOT included here — they genuinely
-   differ between style.css's dark mode and light mode (e.g. --accent-cyan
-   is #2dd4bf in dark mode, #0d9488 in light mode). admin.css is dark-only,
-   so it keeps its own copy of the dark-mode accent values below rather than
-   referencing a "shared" token that would actually only be half-shared. */
+/* Accent colors (cyan/teal/blue) aren't here — they differ between
+   style.css's light and dark mode. admin.css keeps its own dark-mode copy. */

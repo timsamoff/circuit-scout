@@ -508,9 +508,7 @@ body {
     flex-wrap: wrap;
 }
 
-/* Search wrapper with clear button — shared positioning/behavior lives in
-   tokens.css's "search-input-with-clear-button" block (see that file's
-   comment); this is only the public site's own color/size specifics. */
+/* Search wrapper with clear button (positioning/behavior shared via tokens.css) */
 .search-wrapper .filter-input {
     width: 100%;
     padding-right: 2.8rem;
