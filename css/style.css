@@ -607,15 +607,6 @@ body.light-mode .search-clear-btn:hover {
     background: rgba(var(--accent-blue-rgb), 0.15);
 }
 
-/* Light mode specific */
-body.light-mode .search-clear-btn {
-    color: var(--text-secondary);
-}
-
-body.light-mode .search-clear-btn:hover {
-    background: rgba(var(--accent-blue-rgb), 0.15);
-}
-
 /* ============================================================================
    RESULTS AREA
    ============================================================================ */
