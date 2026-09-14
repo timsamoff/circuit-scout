@@ -82,10 +82,20 @@ function loadBaseline() {
     }
 }
 
+// Only rewrites the file (and bumps generatedAt) when the actual violation
+// set changed — a passing full scan runs on every push, and writing a fresh
+// timestamp every single time left a dangling, uncommitted diff after every
+// push even when nothing about the backlog actually changed.
 function saveBaseline(violationKeys) {
+    const newSorted = [...violationKeys].sort();
+    const currentSorted = [...loadBaseline()].sort();
+    const unchanged = newSorted.length === currentSorted.length &&
+        newSorted.every((k, i) => k === currentSorted[i]);
+    if (unchanged) return;
+
     fs.writeFileSync(
         BASELINE_PATH,
-        JSON.stringify({ generatedAt: new Date().toISOString(), violations: [...violationKeys] }, null, 2)
+        JSON.stringify({ generatedAt: new Date().toISOString(), violations: newSorted }, null, 2)
     );
 }
 
