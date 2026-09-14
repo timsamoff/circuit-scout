@@ -28,18 +28,6 @@ let scraperStatus = {
 // Flag to signal cancel
 let cancelRequested = false;
 
-// Serve placeholder manifest to fix 404 errors
-app.get("/manifest.json", (req, res) => {
-    res.json({
-        name: "Circuit Scout",
-        short_name: "CircuitScout",
-        start_url: "/",
-        display: "standalone",
-        theme_color: "#0f2b3d",
-        background_color: "#0a1a24"
-    });
-});
-
 app.get("/browserconfig.xml", (req, res) => {
     res.type("application/xml");
     res.send(`<?xml version="1.0" encoding="utf-8"?>
