@@ -59,11 +59,8 @@ let favorites = new Set(rawFavorites.filter(id => !isNaN(id) && id !== null && i
 
 // If we removed any NaN values, save the cleaned set back to localStorage
 if (rawFavorites.length !== favorites.size) {
-    console.log('Cleaned up NaN values from favorites. Old:', rawFavorites, 'New:', [...favorites]);
     localStorage.setItem('circuitScoutFavorites', JSON.stringify([...favorites]));
 }
-
-console.log('Loaded favorites:', [...favorites]);
 
 // ========== CLEAR SEARCH BUTTON ==========
 function initClearSearchButton() {
@@ -205,15 +202,10 @@ function applyAllFilters(circuits) {
     
     // Favorites filter - ensure ID comparison works
     if (filterState.favorites) {
-        console.log('Filtering by favorites. Favorites set:', [...favorites]);
-        console.log('Before filter count:', filtered.length);
-        
         filtered = filtered.filter(c => {
             const circuitId = parseInt(c.id);
             return !isNaN(circuitId) && favorites.has(circuitId);
         });
-
-        console.log('After filter count:', filtered.length);
 
         filtered.sort((a, b) => parseInt(a.id) - parseInt(b.id));
     } else {
@@ -237,17 +229,9 @@ async function loadCircuitsFromJSON() {
         
         for (const path of paths) {
             try {
-                console.log(`Trying to load from: ${path}`);
                 const response = await fetch(path);
                 if (response.ok) {
                     const data = await response.json();
-                    console.log(`Successfully loaded ${data.length} circuits from ${path}`);
-                    
-                    if (data.length > 0) {
-                        console.log('Sample circuit from JSON:', data[0]);
-                        console.log('ID type:', typeof data[0].id, 'Value:', data[0].id);
-                    }
-                    
                     return data;
                 } else {
                     lastError = `HTTP ${response.status} for ${path}`;
@@ -338,7 +322,6 @@ async function loadMoreCircuits(reset = false) {
                 filteredCircuitsCache = applyAllFilters(allCircuitsCache);
                 totalResults = filteredCircuitsCache.length;
                 totalPages = Math.ceil(totalResults / 20);
-                console.log(`Filtered ${totalResults} circuits from ${allCircuitsCache.length} total`);
             }
             
             const start = (currentPage - 1) * 20;
@@ -462,29 +445,23 @@ function toggleFavorite(e) {
         return;
     }
     
-    console.log('Toggling favorite for circuit ID:', id);
-    console.log('Current favorites set:', [...favorites]);
-    
     if (favorites.has(id)) {
         favorites.delete(id);
         icon.classList.remove('fas');
         icon.classList.add('far');
         btn.classList.remove('starred');
-        console.log('Removed from favorites. New favorites:', [...favorites]);
     } else {
         favorites.add(id);
         icon.classList.remove('far');
         icon.classList.add('fas');
         btn.classList.add('starred');
-        console.log('Added to favorites. New favorites:', [...favorites]);
     }
-    
+
     localStorage.setItem('circuitScoutFavorites', JSON.stringify([...favorites]));
     updateFavFilterButton();
-    
+
     // If favorites filter is active, reload to show/hide circuits
     if (favFilterBtn && favFilterBtn.classList.contains('active')) {
-        console.log('Favorites filter is active, reloading...');
         filteredCircuitsCache = null;
         resetAndReload();
     }
@@ -598,7 +575,6 @@ function toggleFavFilter() {
         filterState.favorites = false;
         favFilterBtn.classList.remove('active');
         favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
-        console.log('Favorites filter turned OFF');
     } else {
         if (favorites.size === 0) {
             showFavoritesModal();
@@ -607,7 +583,6 @@ function toggleFavFilter() {
         filterState.favorites = true;
         favFilterBtn.classList.add('active');
         favFilterBtn.innerHTML = '<i class="fas fa-star"></i> Favorites ON';
-        console.log('Favorites filter turned ON. Favorites:', [...favorites]);
     }
     filteredCircuitsCache = null;
     resetAndReload();
@@ -666,7 +641,6 @@ if (resetFiltersBtn) {
             favFilterBtn.innerHTML = '<i class="far fa-star"></i> Favorites OFF';
         }
         filteredCircuitsCache = null;
-        console.log('All filters reset');
         resetAndReload();
     });
 }
